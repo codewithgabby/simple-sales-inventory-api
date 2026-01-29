@@ -43,3 +43,7 @@ def root():
 
 # Alembic manages database schema
 # Base.metadata.create_all(bind=engine)
+
+if os.getenv("BOOTSTRAP_DB") == "true":
+    Base.metadata.create_all(bind=engine)
+

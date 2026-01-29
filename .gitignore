@@ -1,0 +1,45 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+
+# Environment variables (VERY IMPORTANT)
+.env
+
+
+# Logs
+*.log
+
+
+# OS files
+.DS_Store
+Thumbs.db
+
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Database / local files
+*.sqlite3
+
+
+# Test / temp files
+payload.json
+
+# Alembic
+alembic/versions/__pycache__/

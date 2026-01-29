@@ -1,0 +1,13 @@
+# Requirements file for the project
+
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-jose
+passlib[bcrypt]
+python-multipart
+openpyxl
+psycopg2-binary
+slowapi
+pydantic-settings

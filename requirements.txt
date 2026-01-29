@@ -13,3 +13,4 @@ slowapi
 pydantic-settings
 email-validator
 alembic
+argon2-cffi

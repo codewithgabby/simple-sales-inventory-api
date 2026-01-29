@@ -11,3 +11,4 @@ openpyxl
 psycopg2-binary
 slowapi
 pydantic-settings
+email-validator

@@ -9,7 +9,7 @@ from app.core.rate_limiter import limiter
 from fastapi import FastAPI
 from app.database import engine, Base
 from app import models
-from app.routers import auth, products, inventory, sales, reports, exports, webhooks
+from app.routers import auth, products, inventory, sales, reports, exports, payments, webhooks
 
 app = FastAPI(
     title="Simple Sales & Inventory API",
@@ -29,6 +29,7 @@ app.include_router(inventory.router)
 app.include_router(sales.router)
 app.include_router(reports.router)
 app.include_router(exports.router)
+app.include_router(payments.router)
 app.include_router(webhooks.router)
 
 

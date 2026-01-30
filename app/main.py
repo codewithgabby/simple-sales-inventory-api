@@ -1,5 +1,7 @@
 # Main application file
 
+from fastapi.middleware.cors import CORSMiddleware
+
 import os
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -16,6 +18,18 @@ app = FastAPI(
     description="Backend system for small vendors to track sales and inventory",
     version="1.0.0"
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.state.limiter = limiter
 app.add_exception_handler(

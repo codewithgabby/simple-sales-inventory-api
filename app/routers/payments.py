@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, requests
 from sqlalchemy.orm import Session
-import requests
+
 import os
 from datetime import date, timedelta
 

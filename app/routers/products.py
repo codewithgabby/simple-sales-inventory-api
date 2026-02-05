@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.core.auth import get_current_user
 from app.models.products import Product
+from app.models.sale_items import SaleItem
 from app.schemas.product import (
     ProductCreate,
     ProductUpdate,
@@ -145,6 +146,20 @@ def delete_product(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
+        )
+    
+    # IMPORTANT BUSINESS RULE:
+    # Prevent deleting products that already have sales
+    has_sales = (
+        db.query(SaleItem)
+        .filter(SaleItem.product_id == product_id)
+        .first()
+    )
+
+    if has_sales:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This product has sales records and cannot be deleted",
         )
 
     db.delete(product)

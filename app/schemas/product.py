@@ -1,3 +1,5 @@
+# app/schemas/product.py
+
 from decimal import Decimal
 from pydantic import BaseModel, Field
 from datetime import datetime

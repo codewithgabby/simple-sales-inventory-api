@@ -11,3 +11,4 @@ class SalesReportResponse(BaseModel):
     total_items_sold: int
     start_date: date
     end_date: date
+

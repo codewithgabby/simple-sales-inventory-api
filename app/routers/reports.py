@@ -11,6 +11,8 @@ from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.schemas.report import SalesReportResponse
 
+
+
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
 @router.get("/daily", response_model=SalesReportResponse)
@@ -145,6 +147,9 @@ def monthly_report(
         "start_date": start_date,
         "end_date": end_date,
     }
+
+
+
 
 
 

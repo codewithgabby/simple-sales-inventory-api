@@ -22,13 +22,15 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
+        "http://127.0.0.1:5500",          # local dev (optional)
+        "http://localhost:5500",          # local dev (optional)
+        "https://simplesales-web.netlify.app",  # production frontend
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
 
 
 app.state.limiter = limiter

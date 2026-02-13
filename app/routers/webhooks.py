@@ -57,12 +57,12 @@ async def paystack_webhook(
 
     raw_body = await request.body()
 
-    # 1️⃣ Verify webhook signature
+    # Verify webhook signature
     _verify_paystack_signature(raw_body, signature)
 
     payload = await request.json()
 
-    # 2️⃣ Only process successful payments
+    # Only process successful payments
     if payload.get("event") != "charge.success":
         return {"status": "ignored"}
 
@@ -79,7 +79,7 @@ async def paystack_webhook(
             detail="Invalid payment metadata",
         )
 
-    # 3️⃣ Validate payment amount
+    # Validate payment amount
     expected_amount = 15000 if period_type == "weekly" else 50000
     if amount_kobo != expected_amount:
         raise HTTPException(
@@ -96,7 +96,7 @@ async def paystack_webhook(
         start_date = today.replace(day=1)
         end_date = today
 
-    # 4️⃣ Idempotency check (avoid double unlock)
+    # Idempotency check (avoid double unlock)
     existing_access = (
         db.query(ExportAccess)
         .filter(
@@ -111,7 +111,7 @@ async def paystack_webhook(
     if existing_access:
         return {"status": "already_unlocked"}
 
-    # 5️⃣ Grant export access
+    # Grant export access
     access = ExportAccess(
         business_id=business_id,
         period_type=period_type,

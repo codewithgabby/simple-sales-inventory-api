@@ -10,7 +10,8 @@ from app.core.oauth2 import oauth2_scheme
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
-):
+):  
+
     payload = decode_access_token(token)
 
     if payload is None:

@@ -1,8 +1,5 @@
-# routers/exports.py
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
 from datetime import date, timedelta, datetime
 from io import BytesIO
 
@@ -22,7 +19,9 @@ router = APIRouter(
 )
 
 
-# Access check helper (PAID EXPORTS ONLY)
+# =========================================================
+# ACCESS CHECK HELPER (PAID EXPORTS ONLY)
+# =========================================================
 def _require_export_access(
     db: Session,
     business_id: int,
@@ -48,7 +47,9 @@ def _require_export_access(
         )
 
 
+# =========================================================
 # DAILY EXPORT — FREE
+# =========================================================
 @router.get("/daily")
 @limiter.limit("10/minute")
 def export_daily_sales(
@@ -57,6 +58,7 @@ def export_daily_sales(
     current_user=Depends(get_current_user),
 ):
     today = date.today()
+
     start_dt = datetime.combine(today, datetime.min.time())
     end_dt = datetime.combine(today, datetime.max.time())
 
@@ -78,7 +80,9 @@ def export_daily_sales(
     )
 
 
+# =========================================================
 # WEEKLY EXPORT — PAID
+# =========================================================
 @router.get("/weekly")
 @limiter.limit("5/minute")
 def export_weekly_sales(
@@ -118,7 +122,9 @@ def export_weekly_sales(
     )
 
 
+# =========================================================
 # MONTHLY EXPORT — PAID
+# =========================================================
 @router.get("/monthly")
 @limiter.limit("5/minute")
 def export_monthly_sales(
@@ -158,7 +164,9 @@ def export_monthly_sales(
     )
 
 
-# Excel builder (shared)
+# =========================================================
+# EXCEL BUILDER
+# =========================================================
 def _build_excel(
     db: Session,
     sales: list[Sale],
@@ -180,12 +188,11 @@ def _build_excel(
     ])
 
     product_cache = {}
-    total_sales_amount = 0.0  # FINAL SUMMARY VALUE
+    total_sales_amount = 0.0
 
     for sale in sales:
-        # Count each sale total ONCE (very important)
         total_sales_amount += float(sale.total_amount)
-        
+
         for item in sale.items:
             if item.product_id not in product_cache:
                 product_cache[item.product_id] = (
@@ -208,11 +215,9 @@ def _build_excel(
                 float(item.line_total),
                 float(sale.total_amount),
             ])
-    
-    # Empty row for readability
+
     sheet.append([])
 
-    # FINAL SUMMARY ROW
     sheet.append([
         "",
         "",

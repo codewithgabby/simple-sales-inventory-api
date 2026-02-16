@@ -27,8 +27,8 @@ app.add_middleware(
         "https://simplesales-web.netlify.app",  # production frontend
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Content-Type"],
+    allow_methods=["*"],      # allow all methods
+    allow_headers=["*"],      # allow all headers
 )
 
 

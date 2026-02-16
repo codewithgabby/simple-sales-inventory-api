@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,7 +17,6 @@ from app.core.email import send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# Very common weak passwords
 COMMON_PASSWORDS = {
     "password",
     "password123",
@@ -71,11 +70,12 @@ def signup(request: Request, user_data: UserCreate, db: Session = Depends(get_db
     return {"message": "Account created successfully. Please login."}
 
 
-# ---------------- LOGIN ----------------
+# ---------------- LOGIN (COOKIE-BASED) ----------------
 @router.post("/login")
 @limiter.limit("5/minute")
 def login(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -88,16 +88,29 @@ def login(
         data={"sub": str(user.id), "business_id": user.business_id}
     )
 
-    return {"access_token": token, "token_type": "bearer"}
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+    return {"message": "Login successful"}
+
+
+# ---------------- LOGOUT ----------------
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie("access_token")
+    return {"message": "Logged out successfully"}
 
 
 # ---------------- FORGOT PASSWORD ----------------
 @router.post("/forgot-password")
 @limiter.limit("3/minute")
 def forgot_password(request: Request, email: str, db: Session = Depends(get_db)):
-    """
-    Always returns success (prevents email enumeration)
-    """
     user = db.query(User).filter(User.email == email).first()
 
     if user:
@@ -124,14 +137,11 @@ def reset_password(
     new_password: str,
     db: Session = Depends(get_db),
 ):
-    user = (
-        db.query(User)
-        .filter(User.reset_token_expires_at.isnot(None))
-        .all()
-    )
+    users = db.query(User).filter(User.reset_token_expires_at.isnot(None)).all()
 
     matched_user = None
-    for u in user:
+
+    for u in users:
         if (
             u.reset_token_expires_at
             and u.reset_token_expires_at > datetime.utcnow()

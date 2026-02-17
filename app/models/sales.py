@@ -1,6 +1,6 @@
 # models/sales.py
 
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, Numeric
+from sqlalchemy import Column, Index, Integer, DateTime, ForeignKey, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -20,10 +20,17 @@ class Sale(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+        index=True,
     )
 
     items = relationship(
         "SaleItem",
         back_populates="sale",
         cascade="all, delete-orphan",
+    )
+
+
+    # Composite index for business and date filtering
+    __table_args__ = (
+        Index("ix_sales_business_created", "business_id", "created_at"),
     )

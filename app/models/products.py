@@ -1,6 +1,6 @@
 # app/models/products.py
 
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime
+from sqlalchemy import Column, Index, Integer, String, Numeric, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -15,7 +15,7 @@ class Product(Base):
     cost_price = Column(Numeric(10, 2), nullable=False)
     selling_price = Column(Numeric(10, 2), nullable=False)
 
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False, index=True)
 
     created_at = Column(
         DateTime(timezone=True),
@@ -24,3 +24,7 @@ class Product(Base):
     )
 
     inventory = relationship("Inventory", back_populates="product", uselist=False, cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_products_business", "business_id"),
+    )

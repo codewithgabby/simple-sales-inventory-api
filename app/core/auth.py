@@ -1,23 +1,16 @@
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.users import User
 from app.core.jwt import decode_access_token
+from app.core.oauth2 import oauth2_scheme
 
 
 def get_current_user(
-    request: Request,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
-    token = request.cookies.get("access_token")
-
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
     payload = decode_access_token(token)
 
     if payload is None:

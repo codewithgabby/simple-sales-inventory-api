@@ -1,12 +1,10 @@
 # Main application file
 
 from fastapi.middleware.cors import CORSMiddleware
-
 import os
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.rate_limiter import limiter
-
 
 from fastapi import FastAPI
 from app.database import engine, Base
@@ -19,19 +17,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS for token-based auth (no cookies needed)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://127.0.0.1:5500",          # local dev (optional)
-        "http://localhost:5500",          # local dev (optional)
-        "https://simplesales-web.netlify.app",  # production frontend
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "https://simplesales-web.netlify.app",
     ],
-    allow_credentials=True,
-    allow_methods=["*"],      # allow all methods
-    allow_headers=["*"],      # allow all headers
+    allow_credentials=False,  # no cookies now
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
-
-
 
 app.state.limiter = limiter
 app.add_exception_handler(
@@ -55,12 +52,6 @@ def root():
         "message": "Simple Sales & Inventory API is running"
     }
 
-# if os.getenv("USE_ALEMBIC") != "true":
-    #Base.metadata.create_all(bind=engine)
-
-# Alembic manages database schema
-# Base.metadata.create_all(bind=engine)
 
 if os.getenv("BOOTSTRAP_DB") == "true":
     Base.metadata.create_all(bind=engine)
-

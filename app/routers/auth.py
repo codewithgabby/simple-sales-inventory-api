@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import SQLAlchemyError
@@ -69,13 +69,11 @@ def signup(request: Request, user_data: UserCreate, db: Session = Depends(get_db
 
     return {"message": "Account created successfully. Please login."}
 
-
-# ---------------- LOGIN (COOKIE-BASED) ----------------
+# ---------------- LOGIN (TOKEN-BASED) ----------------
 @router.post("/login")
 @limiter.limit("5/minute")
 def login(
     request: Request,
-    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
@@ -88,22 +86,15 @@ def login(
         data={"sub": str(user.id), "business_id": user.business_id}
     )
 
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        secure=False,
-        samesite="none",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
-
-    return {"message": "Login successful"}
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
 
 
 # ---------------- LOGOUT ----------------
 @router.post("/logout")
-def logout(response: Response):
-    response.delete_cookie("access_token")
+def logout():
     return {"message": "Logged out successfully"}
 
 

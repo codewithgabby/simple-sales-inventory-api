@@ -20,7 +20,7 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 
 
 # =========================================================
-# SUMMARY REPORT CALCULATOR (TIMESTAMP SAFE)
+# SUMMARY REPORT CALCULATOR
 # =========================================================
 def _calculate_report(
     db: Session,
@@ -31,31 +31,27 @@ def _calculate_report(
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
 
+    base_filter = [
+        Sale.business_id == business_id,
+        Sale.created_at.between(start_dt, end_dt),
+    ]
+
     total_sales = (
         db.query(func.coalesce(func.sum(Sale.total_amount), 0))
-        .filter(
-            Sale.business_id == business_id,
-            Sale.created_at.between(start_dt, end_dt),
-        )
+        .filter(*base_filter)
         .scalar()
     )
 
     total_orders = (
         db.query(func.count(Sale.id))
-        .filter(
-            Sale.business_id == business_id,
-            Sale.created_at.between(start_dt, end_dt),
-        )
+        .filter(*base_filter)
         .scalar()
     )
 
     total_items_sold = (
         db.query(func.coalesce(func.sum(SaleItem.quantity), 0))
-        .join(Sale)
-        .filter(
-            Sale.business_id == business_id,
-            Sale.created_at.between(start_dt, end_dt),
-        )
+        .join(Sale, SaleItem.sale_id == Sale.id)
+        .filter(*base_filter)
         .scalar()
     )
 
@@ -68,10 +64,7 @@ def _calculate_report(
         )
         .join(SaleItem, SaleItem.product_id == Product.id)
         .join(Sale, SaleItem.sale_id == Sale.id)
-        .filter(
-            Sale.business_id == business_id,
-            Sale.created_at.between(start_dt, end_dt),
-        )
+        .filter(*base_filter)
         .scalar()
     )
 
@@ -91,7 +84,7 @@ def _calculate_report(
 
 
 # =========================================================
-# PRODUCT PROFIT CALCULATOR (FILTER + PAGINATION SAFE)
+# PRODUCT PROFIT CALCULATOR
 # =========================================================
 def _calculate_product_profit(
     db: Session,
@@ -105,7 +98,7 @@ def _calculate_product_profit(
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
 
-    query = (
+    base_query = (
         db.query(
             Product.id.label("product_id"),
             Product.name.label("product_name"),
@@ -123,15 +116,20 @@ def _calculate_product_profit(
             Sale.created_at.between(start_dt, end_dt),
         )
         .group_by(Product.id, Product.name)
-        .order_by(func.sum(SaleItem.line_total).desc())
     )
 
     if search:
-        query = query.filter(Product.name.ilike(f"%{search}%"))
+        base_query = base_query.filter(Product.name.ilike(f"%{search}%"))
 
-    total_products = query.count()
+    total_products = base_query.count()
 
-    results = query.limit(limit).offset(offset).all()
+    results = (
+        base_query
+        .order_by(func.sum(SaleItem.line_total).desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
 
     formatted_results = []
 

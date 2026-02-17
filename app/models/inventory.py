@@ -1,6 +1,6 @@
 # app/models/inventory.py
 
-from sqlalchemy import Column, Integer, Date, ForeignKey
+from sqlalchemy import Column, Index, Integer, Date, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -16,3 +16,7 @@ class Inventory(Base):
     expiry_date = Column(Date, nullable=True)
 
     product = relationship("Product", back_populates="inventory")
+
+    __table_args__ = (
+        Index("ix_inventory_product", "product_id"),
+    )

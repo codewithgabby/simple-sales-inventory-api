@@ -1,9 +1,8 @@
 # routers/sales.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
 from decimal import Decimal
 
 from app.database import get_db
@@ -41,16 +40,17 @@ def create_sale(
     sale_items_objects = []
 
     try:
-        # Create sale FIRST
         sale = Sale(
             business_id=current_user.business_id,
             total_amount=Decimal("0.00"),
         )
         db.add(sale)
-        db.flush()  # get sale.id safely
+        db.flush()
 
         for item in sale_data.items:
-            if item.quantity <= 0:
+
+            # Strict quantity validation
+            if item.quantity is None or item.quantity <= 0:
                 raise HTTPException(
                     status_code=400,
                     detail="Item quantity must be greater than zero",
@@ -81,6 +81,7 @@ def create_sale(
                     detail=f"No inventory for {product.name}",
                 )
 
+            # Hard stop if stock insufficient
             if inventory.quantity_available < item.quantity:
                 raise HTTPException(
                     status_code=400,
@@ -90,7 +91,15 @@ def create_sale(
             line_total = product.selling_price * item.quantity
             total_amount += line_total
 
+            # Deduct stock safely
             inventory.quantity_available -= item.quantity
+
+            # Final safety guard
+            if inventory.quantity_available < 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Stock inconsistency detected for {product.name}",
+                )
 
             sale_items_objects.append(
                 SaleItem(
@@ -112,6 +121,7 @@ def create_sale(
     except HTTPException:
         db.rollback()
         raise
+
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(
@@ -120,22 +130,20 @@ def create_sale(
         )
 
 
-
-
-
 @router.get("", response_model=list[SaleResponse])
 def list_sales(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0)
 ):
-    """
-    List all sales for the logged-in business
-    """
     sales = (
         db.query(Sale)
         .options(joinedload(Sale.items))
         .filter(Sale.business_id == current_user.business_id)
         .order_by(Sale.created_at.desc())
+        .limit(limit)
+        .offset(offset)
         .all()
     )
 
@@ -148,9 +156,6 @@ def get_sale(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """
-    Get a single sale (receipt view)
-    """
     sale = (
         db.query(Sale)
         .options(joinedload(Sale.items))

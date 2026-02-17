@@ -47,6 +47,12 @@ def add_inventory(
             detail="Quantity cannot be negative",
         )
 
+    if inventory_data.low_stock_threshold < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Low stock threshold cannot be negative",
+        )
+
     inventory = Inventory(
         product_id=product.id,
         quantity_available=inventory_data.quantity_available,

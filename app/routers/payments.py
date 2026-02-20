@@ -1,19 +1,23 @@
 # app/routers/payments.py
 
+from urllib import response
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 import requests
-import os
 from datetime import date, timedelta
 
 from app.database import get_db
 from app.core.auth import get_current_user
 from app.models.export_access import ExportAccess
+from app.core.config import settings
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
+
+
+PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
 PAYSTACK_INIT_URL = "https://api.paystack.co/transaction/initialize"
 
 
@@ -72,7 +76,26 @@ def initialize_payment(
         "Content-Type": "application/json",
     }
 
-    response = requests.post(PAYSTACK_INIT_URL, json=payload, headers=headers)
+    try:
+        response = requests.post(
+            PAYSTACK_INIT_URL,
+            json=payload,
+            headers=headers,
+            timeout=10,
+        )
+
+    except requests.RequestException:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to connect to payment provider",
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment initialization failed",
+    )
+
     data = response.json()
 
     if not data.get("status"):

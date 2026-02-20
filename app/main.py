@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.database import engine, Base
 from app.core.rate_limiter import limiter
+from app.core.config import settings
 from app.routers import (
     auth,
     products,
@@ -107,6 +108,6 @@ def root():
 
 # OPTIONAL DB BOOTSTRAP
 
-if os.getenv("BOOTSTRAP_DB") == "true":
+if settings.ENV == "development" and os.getenv("BOOTSTRAP_DB") == "true":
     logger.info("Bootstrapping database tables...")
     Base.metadata.create_all(bind=engine)

@@ -68,6 +68,7 @@ def run_migrations_online() -> None:
     """
     from sqlalchemy import create_engine
 
+    
     database_url = os.getenv("DATABASE_URL")
 
     connectable = create_engine(

@@ -24,9 +24,6 @@ from app.routers import (
     webhooks,
 )      
 
-from alembic import command
-from alembic.config import Config
-
 
 # LOGGING CONFIGURATION
 
@@ -36,12 +33,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("app")
-
-
-# RUN ALEMBIC MIGRATIONS ON STARTUP (PRODUCTION SAFE)
-if settings.ENV == "production":
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
 
 
 # APP INIT

@@ -19,12 +19,9 @@ class Settings(BaseSettings):
     # Paystack
     PAYSTACK_SECRET_KEY: str | None = None
 
-    # Email (Gmail SMTP)
-    SMTP_HOST: str
-    SMTP_PORT: int
-    SMTP_USERNAME: str
-    SMTP_PASSWORD: str
-    EMAIL_FROM: str
+    # Email (Resend)
+    RESEND_API_KEY: str
+    RESEND_FROM_EMAIL: str
 
     # Password reset
     PASSWORD_RESET_EXPIRE_MINUTES: int = 30

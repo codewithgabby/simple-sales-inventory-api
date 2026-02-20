@@ -1,17 +1,16 @@
-import smtplib
-from email.message import EmailMessage
+import requests
 
 from app.core.config import settings
 
 
 def send_password_reset_email(to_email: str, reset_link: str):
-    msg = EmailMessage()
-    msg["Subject"] = "Reset your Simple Sales password"
-    msg["From"] = settings.EMAIL_FROM
-    msg["To"] = to_email
+    url = "https://api.resend.com/emails"
 
-    msg.set_content(
-        f"""
+    payload = {
+        "from": settings.RESEND_FROM_EMAIL,
+        "to": [to_email],
+        "subject": "Reset your Simple Sales password",
+        "text": f"""
 Hi,
 
 You requested to reset your password.
@@ -24,10 +23,15 @@ This link will expire in {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes.
 If you did not request this, you can safely ignore this email.
 
 — Simple Sales Team
-"""
-    )
+""",
+    }
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        server.starttls()
-        server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        server.send_message(msg)
+    headers = {
+        "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    if response.status_code >= 400:
+        raise Exception(f"Email sending failed: {response.text}")

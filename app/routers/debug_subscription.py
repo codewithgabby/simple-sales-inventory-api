@@ -54,7 +54,9 @@ def force_expire(
     if not access:
         raise HTTPException(status_code=404, detail="No active subscription")
 
-    access.end_date = today - timedelta(days=1)
+    access.start_date = today - timedelta(days=30)
+    access.end_date = today - timedelta(days=29)
+
     db.commit()
 
     return {"status": "subscription expired manually"}

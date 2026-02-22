@@ -22,6 +22,7 @@ from app.routers import (
     exports,
     payments,
     webhooks,
+    debug_subscription,
 )      
 
 
@@ -98,6 +99,7 @@ app.include_router(reports.router)
 app.include_router(exports.router)
 app.include_router(payments.router)
 app.include_router(webhooks.router)
+app.include_router(debug_subscription.router)
 
 
 # ROOT

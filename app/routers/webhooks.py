@@ -90,27 +90,26 @@ async def paystack_webhook(
     today = date.today()
 
     if period_type == "weekly":
-        start_date = today - timedelta(days=6)
-        end_date = today
+        start_date = today
+        end_date = today + timedelta(days=6)
     else:
-        start_date = today.replace(day=1)
-        end_date = today
-
+        start_date = today
+        end_date = today + timedelta(days=29)
+   
     # Idempotency check (avoid double unlock)
     existing_access = (
         db.query(ExportAccess)
         .filter(
             ExportAccess.business_id == business_id,
             ExportAccess.period_type == period_type,
-            ExportAccess.start_date <= start_date,
-            ExportAccess.end_date >= end_date,
-        )
-        .first()
+            ExportAccess.end_date >= today,
+       )
+       .first()
     )
 
     if existing_access:
-        return {"status": "already_unlocked"}
-
+        return {"status": "already_active"}
+    
     # Grant export access
     access = ExportAccess(
         business_id=business_id,

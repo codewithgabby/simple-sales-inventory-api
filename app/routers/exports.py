@@ -19,24 +19,26 @@ router = APIRouter(
 )
 
 
+
 # =========================================================
-# ACCESS CHECK HELPER (PAID EXPORTS ONLY)
+# ACCESS CHECK HELPER (TIME-BASED SUBSCRIPTION)
 # =========================================================
 def _require_export_access(
     db: Session,
     business_id: int,
     period_type: str,
-    start_date: date,
-    end_date: date,
 ):
+    today = date.today()
+
     access = (
         db.query(ExportAccess)
         .filter(
             ExportAccess.business_id == business_id,
             ExportAccess.period_type == period_type,
-            ExportAccess.start_date <= start_date,
-            ExportAccess.end_date >= end_date,
+            ExportAccess.start_date <= today,
+            ExportAccess.end_date >= today,
         )
+        .order_by(ExportAccess.end_date.desc())
         .first()
     )
 
@@ -45,7 +47,6 @@ def _require_export_access(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Please pay to download this export",
         )
-
 
 # =========================================================
 # DAILY EXPORT — FREE
@@ -90,16 +91,14 @@ def export_weekly_sales(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    today = date.today()
-    start_date = today - timedelta(days=6)
-
     _require_export_access(
         db=db,
         business_id=current_user.business_id,
         period_type="weekly",
-        start_date=start_date,
-        end_date=today,
     )
+
+    today = date.today()
+    start_date = today - timedelta(days=6)
 
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(today, datetime.max.time())
@@ -121,7 +120,6 @@ def export_weekly_sales(
         filename=f"weekly_sales_{start_date}_to_{today}.xlsx",
     )
 
-
 # =========================================================
 # MONTHLY EXPORT — PAID
 # =========================================================
@@ -132,16 +130,14 @@ def export_monthly_sales(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    today = date.today()
-    start_date = today.replace(day=1)
-
     _require_export_access(
         db=db,
         business_id=current_user.business_id,
         period_type="monthly",
-        start_date=start_date,
-        end_date=today,
     )
+
+    today = date.today()
+    start_date = today - timedelta(days=29)
 
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(today, datetime.max.time())
@@ -160,7 +156,7 @@ def export_monthly_sales(
         db=db,
         sales=sales,
         sheet_name="Monthly Sales",
-        filename=f"monthly_sales_{today.strftime('%Y_%m')}.xlsx",
+        filename=f"monthly_sales_{start_date}_to_{today}.xlsx",
     )
 
 

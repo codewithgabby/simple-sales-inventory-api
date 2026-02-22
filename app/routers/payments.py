@@ -48,17 +48,15 @@ def initialize_payment(
         .filter(
             ExportAccess.business_id == current_user.business_id,
             ExportAccess.period_type == period_type,
-            ExportAccess.start_date == start_date,
-            ExportAccess.end_date == end_date,
-        )
+            ExportAccess.end_date >= today)
         .first()
-    )
+   )
 
     if existing_access:
-        raise HTTPException(
-            status_code=400,
-            detail="Export already unlocked for this period",
-        )
+       raise HTTPException(
+           status_code=400,
+           detail="Subscription already active",
+    )
 
     payload = {
         "email": current_user.email,
@@ -66,8 +64,7 @@ def initialize_payment(
         "metadata": {
             "business_id": current_user.business_id,
             "period_type": period_type,
-            "start_date": str(start_date),
-            "end_date": str(end_date),
+           
         },
     }
 

@@ -1,9 +1,8 @@
 # app/models/users.py
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from datetime import datetime
 
 from app.database import Base
 
@@ -19,6 +18,9 @@ class User(Base):
         ForeignKey("businesses.id"), 
         nullable=False,
     )
+    
+    # Admin flag to differentiate between regular users and business owners
+    is_admin = Column(Boolean, default=False, nullable=False)
 
     reset_token_hash = Column(String, nullable=True)
     reset_token_expires_at = Column(DateTime, nullable=True)

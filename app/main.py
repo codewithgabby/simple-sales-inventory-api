@@ -1,7 +1,7 @@
 # Main application file
 
 
-import os
+
 import logging
 import time
 
@@ -22,6 +22,7 @@ from app.routers import (
     exports,
     payments,
     webhooks,
+    admin_bootstrap,
 )      
 
 
@@ -98,6 +99,7 @@ app.include_router(reports.router)
 app.include_router(exports.router)
 app.include_router(payments.router)
 app.include_router(webhooks.router)
+app.include_router(admin_bootstrap.router)
 
 
 
@@ -109,8 +111,3 @@ def root():
     return {"message": "Simple Sales & Inventory API is running"}
 
 
-# OPTIONAL DB BOOTSTRAP
-
-if settings.ENV == "development" and os.getenv("BOOTSTRAP_DB") == "true":
-    logger.info("Bootstrapping database tables...")
-    Base.metadata.create_all(bind=engine)

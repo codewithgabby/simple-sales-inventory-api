@@ -81,7 +81,8 @@ def login(
 
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
+    
+    # Create JWT token with user ID, business ID, and admin status
     token = create_access_token(
         data={"sub": str(user.id), "business_id": user.business_id, "is_admin": user.is_admin}
     )

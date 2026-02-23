@@ -83,24 +83,49 @@ def subscription_analytics(
 
 
 # ==========================================
-# BUSINESS DRILLDOWN
+# BUSINESS DRILLDOWN WITH SEARCH + PAGINATION
 # ==========================================
 
 @router.get("/businesses")
 def business_breakdown(
+    search: str = None,
+    page: int = 1,
+    limit: int = 10,
     db: Session = Depends(get_db),
     admin = Depends(get_admin_user),
 ):
 
-    businesses = db.query(Business).all()
+    if page < 1:
+        page = 1
+
+    if limit < 1 or limit > 50:
+        limit = 10
+
+    query = (
+        db.query(Business, User)
+        .join(User, User.business_id == Business.id)
+    )
+
+    #  Search by business name OR email
+    if search:
+        search_term = f"%{search.lower()}%"
+        query = query.filter(
+            func.lower(Business.name).like(search_term) |
+            func.lower(User.email).like(search_term)
+        )
+
+    total_records = query.count()
+
+    businesses = (
+        query
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
 
     results = []
 
-    for biz in businesses:
-
-        total_users = db.query(func.count(User.id)).filter(
-            User.business_id == biz.id
-        ).scalar()
+    for biz, user in businesses:
 
         total_products = db.query(func.count(Product.id)).filter(
             Product.business_id == biz.id
@@ -119,11 +144,16 @@ def business_breakdown(
         results.append({
             "business_id": biz.id,
             "business_name": biz.name,
+            "owner_email": user.email,
             "created_at": biz.created_at,
-            "total_users": total_users,
             "total_products": total_products,
             "total_sales": total_sales,
             "total_revenue": float(total_revenue),
         })
 
-    return results
+    return {
+        "page": page,
+        "limit": limit,
+        "total_records": total_records,
+        "data": results
+    }

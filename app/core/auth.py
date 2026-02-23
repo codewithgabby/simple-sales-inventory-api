@@ -1,3 +1,5 @@
+# app/core/auth.py
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -36,3 +38,14 @@ def get_current_user(
         )
 
     return user
+
+def get_admin_user(
+    current_user: User = Depends(get_current_user),
+):  
+    # Ensure the user has admin privileges 
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return current_user

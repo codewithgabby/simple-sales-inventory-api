@@ -30,19 +30,46 @@ def platform_overview(
     admin = Depends(get_admin_user),
 ):
 
+    today = date.today()
+    first_day_of_month = today.replace(day=1)
+
     total_businesses = db.query(func.count(Business.id)).scalar()
     total_users = db.query(func.count(User.id)).scalar()
     total_products = db.query(func.count(Product.id)).scalar()
     total_sales = db.query(func.count(Sale.id)).scalar()
 
-    total_revenue = db.query(func.coalesce(func.sum(Sale.total_amount), 0)).scalar()
+    total_revenue = db.query(
+        func.coalesce(func.sum(Sale.total_amount), 0)
+    ).scalar()
+
+    # New businesses this month
+    businesses_this_month = db.query(func.count(Business.id)).filter(
+        Business.created_at >= first_day_of_month
+    ).scalar()
+
+    # Sales this month
+    sales_this_month = db.query(func.count(Sale.id)).filter(
+        Sale.created_at >= first_day_of_month
+    ).scalar()
+
+    revenue_this_month = db.query(
+        func.coalesce(func.sum(Sale.total_amount), 0)
+    ).filter(
+        Sale.created_at >= first_day_of_month
+    ).scalar()
 
     return {
         "total_businesses": total_businesses,
+        "businesses_this_month": businesses_this_month,
+
         "total_users": total_users,
         "total_products": total_products,
+
         "total_sales": total_sales,
+        "sales_this_month": sales_this_month,
+
         "total_revenue": float(total_revenue),
+        "revenue_this_month": float(revenue_this_month),
     }
 
 
@@ -60,12 +87,24 @@ def subscription_analytics(
 
     active_weekly = db.query(func.count(ExportAccess.id)).filter(
         ExportAccess.period_type == "weekly",
-        ExportAccess.end_date >= today
+        ExportAccess.start_date <= today,
+        ExportAccess.end_date >= today,
     ).scalar()
 
     active_monthly = db.query(func.count(ExportAccess.id)).filter(
         ExportAccess.period_type == "monthly",
-        ExportAccess.end_date >= today
+        ExportAccess.start_date <= today,
+        ExportAccess.end_date >= today,
+    ).scalar()
+
+    expired_weekly = db.query(func.count(ExportAccess.id)).filter(
+        ExportAccess.period_type == "weekly",
+        ExportAccess.end_date < today,
+    ).scalar()
+
+    expired_monthly = db.query(func.count(ExportAccess.id)).filter(
+        ExportAccess.period_type == "monthly",
+        ExportAccess.end_date < today,
     ).scalar()
 
     total_subscriptions = db.query(func.count(ExportAccess.id)).scalar()
@@ -77,10 +116,13 @@ def subscription_analytics(
     return {
         "active_weekly_subscriptions": active_weekly,
         "active_monthly_subscriptions": active_monthly,
+
+        "expired_weekly_subscriptions": expired_weekly,
+        "expired_monthly_subscriptions": expired_monthly,
+
         "total_subscriptions_ever": total_subscriptions,
         "total_subscription_revenue": float(total_subscription_revenue),
     }
-
 
 # ==========================================
 # BUSINESS DRILLDOWN WITH SEARCH + PAGINATION

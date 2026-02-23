@@ -1,0 +1,129 @@
+# app/routers/admin.py
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from datetime import date
+
+from app.database import get_db
+from app.core.auth import get_admin_user
+from app.models.business import Business
+from app.models.users import User
+from app.models.products import Product
+from app.models.sales import Sale
+from app.models.export_access import ExportAccess
+
+
+router = APIRouter(
+    prefix="/admin",
+    tags=["Admin"],
+)
+
+
+# ==========================================
+# PLATFORM OVERVIEW
+# ==========================================
+
+@router.get("/overview")
+def platform_overview(
+    db: Session = Depends(get_db),
+    admin = Depends(get_admin_user),
+):
+
+    total_businesses = db.query(func.count(Business.id)).scalar()
+    total_users = db.query(func.count(User.id)).scalar()
+    total_products = db.query(func.count(Product.id)).scalar()
+    total_sales = db.query(func.count(Sale.id)).scalar()
+
+    total_revenue = db.query(func.coalesce(func.sum(Sale.total_amount), 0)).scalar()
+
+    return {
+        "total_businesses": total_businesses,
+        "total_users": total_users,
+        "total_products": total_products,
+        "total_sales": total_sales,
+        "total_revenue": float(total_revenue),
+    }
+
+
+# ==========================================
+# SUBSCRIPTION ANALYTICS
+# ==========================================
+
+@router.get("/subscriptions")
+def subscription_analytics(
+    db: Session = Depends(get_db),
+    admin = Depends(get_admin_user),
+):
+
+    today = date.today()
+
+    active_weekly = db.query(func.count(ExportAccess.id)).filter(
+        ExportAccess.period_type == "weekly",
+        ExportAccess.end_date >= today
+    ).scalar()
+
+    active_monthly = db.query(func.count(ExportAccess.id)).filter(
+        ExportAccess.period_type == "monthly",
+        ExportAccess.end_date >= today
+    ).scalar()
+
+    total_subscriptions = db.query(func.count(ExportAccess.id)).scalar()
+
+    total_subscription_revenue = db.query(
+        func.coalesce(func.sum(ExportAccess.amount_paid), 0)
+    ).scalar()
+
+    return {
+        "active_weekly_subscriptions": active_weekly,
+        "active_monthly_subscriptions": active_monthly,
+        "total_subscriptions_ever": total_subscriptions,
+        "total_subscription_revenue": float(total_subscription_revenue),
+    }
+
+
+# ==========================================
+# BUSINESS DRILLDOWN
+# ==========================================
+
+@router.get("/businesses")
+def business_breakdown(
+    db: Session = Depends(get_db),
+    admin = Depends(get_admin_user),
+):
+
+    businesses = db.query(Business).all()
+
+    results = []
+
+    for biz in businesses:
+
+        total_users = db.query(func.count(User.id)).filter(
+            User.business_id == biz.id
+        ).scalar()
+
+        total_products = db.query(func.count(Product.id)).filter(
+            Product.business_id == biz.id
+        ).scalar()
+
+        total_sales = db.query(func.count(Sale.id)).filter(
+            Sale.business_id == biz.id
+        ).scalar()
+
+        total_revenue = db.query(
+            func.coalesce(func.sum(Sale.total_amount), 0)
+        ).filter(
+            Sale.business_id == biz.id
+        ).scalar()
+
+        results.append({
+            "business_id": biz.id,
+            "business_name": biz.name,
+            "created_at": biz.created_at,
+            "total_users": total_users,
+            "total_products": total_products,
+            "total_sales": total_sales,
+            "total_revenue": float(total_revenue),
+        })
+
+    return results

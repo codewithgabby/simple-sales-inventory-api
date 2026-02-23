@@ -23,6 +23,7 @@ from app.routers import (
     payments,
     webhooks,
     admin_bootstrap,
+    admin,
 )      
 
 
@@ -100,6 +101,7 @@ app.include_router(exports.router)
 app.include_router(payments.router)
 app.include_router(webhooks.router)
 app.include_router(admin_bootstrap.router)
+app.include_router(admin.router)
 
 
 

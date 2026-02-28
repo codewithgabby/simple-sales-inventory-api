@@ -29,8 +29,6 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_RESET_URL: str
 
-    INTERNAL_ADMIN_SECRET: str
-
 
 
     model_config = SettingsConfigDict(

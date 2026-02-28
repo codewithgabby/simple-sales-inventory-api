@@ -44,4 +44,8 @@ payload.json
 # Alembic
 alembic/versions/__pycache__/
 
+# Internal admin script
 app/bootstrap/create_admin.py
+
+# Internal admin router
+app/routers/internal_admin.py

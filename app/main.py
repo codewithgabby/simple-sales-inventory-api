@@ -23,7 +23,6 @@ from app.routers import (
     payments,
     webhooks,
     admin,
-    internal_admin,
 )      
 
 
@@ -102,7 +101,6 @@ app.include_router(exports.router)
 app.include_router(payments.router)
 app.include_router(webhooks.router)
 app.include_router(admin.router)
-app.include_router(internal_admin.router)
 app.include_router(premium_intelligence.router)
 
 # ROOT

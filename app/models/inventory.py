@@ -1,6 +1,6 @@
 # app/models/inventory.py
 
-from sqlalchemy import Column, Index, Integer, Date, ForeignKey
+from sqlalchemy import CheckConstraint, Column, Index, Integer, Date, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -18,5 +18,6 @@ class Inventory(Base):
     product = relationship("Product", back_populates="inventory")
 
     __table_args__ = (
-        Index("ix_inventory_product", "product_id"),
+        CheckConstraint("quantity_available >= 0", name="ck_inventory_quantity_non_negative"),
+        CheckConstraint("low_stock_threshold >= 0", name="ck_low_stock_non_negative"),
     )

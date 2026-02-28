@@ -1,6 +1,6 @@
 # app/models/products.py
 
-from sqlalchemy import Column, Index, Integer, String, Numeric, ForeignKey, DateTime
+from sqlalchemy import CheckConstraint, Column, Index, Integer, String, Numeric, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -27,4 +27,7 @@ class Product(Base):
 
     __table_args__ = (
         Index("ix_products_business", "business_id"),
+        UniqueConstraint("business_id", "name", name="uq_business_product_name"),
+        CheckConstraint("cost_price >= 0", name="ck_cost_price_positive"),
+        CheckConstraint("selling_price > 0", name="ck_selling_price_positive"),
     )

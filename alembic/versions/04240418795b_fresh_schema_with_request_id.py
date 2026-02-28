@@ -1,8 +1,8 @@
-"""initial_schema
+"""fresh schema with request_id
 
-Revision ID: 9a70e2c56d33
+Revision ID: 04240418795b
 Revises: 
-Create Date: 2026-02-23 11:47:50.502193
+Create Date: 2026-02-27 18:32:09.743250
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '9a70e2c56d33'
+revision: str = '04240418795b'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,6 +24,7 @@ def upgrade() -> None:
     op.create_table('businesses',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
+    sa.Column('is_suspended', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
@@ -36,13 +37,18 @@ def upgrade() -> None:
     sa.Column('start_date', sa.Date(), nullable=False),
     sa.Column('end_date', sa.Date(), nullable=False),
     sa.Column('amount_paid', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('transaction_reference', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.ForeignKeyConstraint(['business_id'], ['businesses.id'], ),
+    sa.CheckConstraint("period_type IN ('weekly', 'monthly')", name='ck_period_type_valid'),
+    sa.CheckConstraint('amount_paid > 0', name='ck_amount_paid_positive'),
+    sa.CheckConstraint('end_date >= start_date', name='ck_subscription_date_valid'),
+    sa.ForeignKeyConstraint(['business_id'], ['businesses.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('business_id', 'period_type', 'start_date', 'end_date', name='uq_export_access_period')
+    sa.UniqueConstraint('transaction_reference', name='uq_export_access_reference')
     )
     op.create_index(op.f('ix_export_access_business_id'), 'export_access', ['business_id'], unique=False)
     op.create_index(op.f('ix_export_access_id'), 'export_access', ['id'], unique=False)
+    op.create_index(op.f('ix_export_access_transaction_reference'), 'export_access', ['transaction_reference'], unique=True)
     op.create_table('products',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
@@ -50,8 +56,11 @@ def upgrade() -> None:
     sa.Column('selling_price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('business_id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.CheckConstraint('cost_price >= 0', name='ck_cost_price_positive'),
+    sa.CheckConstraint('selling_price > 0', name='ck_selling_price_positive'),
     sa.ForeignKeyConstraint(['business_id'], ['businesses.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('business_id', 'name', name='uq_business_product_name')
     )
     op.create_index('ix_products_business', 'products', ['business_id'], unique=False)
     op.create_index(op.f('ix_products_business_id'), 'products', ['business_id'], unique=False)
@@ -61,8 +70,10 @@ def upgrade() -> None:
     sa.Column('business_id', sa.Integer(), nullable=False),
     sa.Column('total_amount', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('request_id', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['business_id'], ['businesses.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('business_id', 'request_id', name='uq_business_request_id')
     )
     op.create_index('ix_sales_business_created', 'sales', ['business_id', 'created_at'], unique=False)
     op.create_index(op.f('ix_sales_business_id'), 'sales', ['business_id'], unique=False)
@@ -77,7 +88,7 @@ def upgrade() -> None:
     sa.Column('reset_token_hash', sa.String(), nullable=True),
     sa.Column('reset_token_expires_at', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.ForeignKeyConstraint(['business_id'], ['businesses.id'], ),
+    sa.ForeignKeyConstraint(['business_id'], ['businesses.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
@@ -88,11 +99,12 @@ def upgrade() -> None:
     sa.Column('quantity_available', sa.Integer(), nullable=False),
     sa.Column('low_stock_threshold', sa.Integer(), nullable=False),
     sa.Column('expiry_date', sa.Date(), nullable=True),
+    sa.CheckConstraint('low_stock_threshold >= 0', name='ck_low_stock_non_negative'),
+    sa.CheckConstraint('quantity_available >= 0', name='ck_inventory_quantity_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_inventory_id'), 'inventory', ['id'], unique=False)
-    op.create_index('ix_inventory_product', 'inventory', ['product_id'], unique=False)
     op.create_index(op.f('ix_inventory_product_id'), 'inventory', ['product_id'], unique=True)
     op.create_table('sale_items',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -101,8 +113,9 @@ def upgrade() -> None:
     sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('selling_price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('line_total', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.CheckConstraint('quantity > 0', name='ck_saleitem_quantity_positive'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
-    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
+    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_sale_items_id'), 'sale_items', ['id'], unique=False)
@@ -119,7 +132,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_sale_items_id'), table_name='sale_items')
     op.drop_table('sale_items')
     op.drop_index(op.f('ix_inventory_product_id'), table_name='inventory')
-    op.drop_index('ix_inventory_product', table_name='inventory')
     op.drop_index(op.f('ix_inventory_id'), table_name='inventory')
     op.drop_table('inventory')
     op.drop_index(op.f('ix_users_id'), table_name='users')
@@ -134,6 +146,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_products_business_id'), table_name='products')
     op.drop_index('ix_products_business', table_name='products')
     op.drop_table('products')
+    op.drop_index(op.f('ix_export_access_transaction_reference'), table_name='export_access')
     op.drop_index(op.f('ix_export_access_id'), table_name='export_access')
     op.drop_index(op.f('ix_export_access_business_id'), table_name='export_access')
     op.drop_table('export_access')

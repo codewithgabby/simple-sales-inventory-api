@@ -1,5 +1,3 @@
-# app/models/export_access.py
-
 from sqlalchemy import (
     Column,
     Integer,
@@ -9,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     UniqueConstraint,
+    CheckConstraint,
 )
 from sqlalchemy.sql import func
 
@@ -20,11 +19,20 @@ class ExportAccess(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "business_id",
-            "period_type",
-            "start_date",
-            "end_date",
-            name="uq_export_access_period",
+            "transaction_reference",
+            name="uq_export_access_reference",
+        ),
+        CheckConstraint(
+            "period_type IN ('weekly', 'monthly')",
+            name="ck_period_type_valid",
+        ),
+        CheckConstraint(
+            "end_date >= start_date",
+            name="ck_subscription_date_valid",
+        ),
+        CheckConstraint(
+            "amount_paid > 0",
+            name="ck_amount_paid_positive",
         ),
     )
 
@@ -32,17 +40,24 @@ class ExportAccess(Base):
 
     business_id = Column(
         Integer,
-        ForeignKey("businesses.id"),
+        ForeignKey("businesses.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
-    period_type = Column(String, nullable=False)  # "weekly" or "monthly"
+    period_type = Column(String, nullable=False)
 
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
 
     amount_paid = Column(Numeric(10, 2), nullable=False)
+
+    transaction_reference = Column(
+        String,
+        nullable=False,
+        unique=True,
+        index=True,
+    )
 
     created_at = Column(
         DateTime(timezone=True),

@@ -10,6 +10,7 @@ class SaleItemCreate(BaseModel):
     quantity: int
 
 class SaleCreate(BaseModel):
+    request_id: str
     items: List[SaleItemCreate]
 
 class SaleItemResponse(BaseModel):

@@ -1,7 +1,5 @@
 # Main application file
 
-
-
 import logging
 import time
 
@@ -19,6 +17,8 @@ from app.routers import (
     inventory,
     sales,
     reports,
+    insights,
+    premium_intelligence,
     exports,
     payments,
     webhooks,
@@ -56,7 +56,7 @@ app.add_middleware(
         "https://simplesales-web.netlify.app",
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -96,18 +96,18 @@ app.include_router(products.router)
 app.include_router(inventory.router)
 app.include_router(sales.router)
 app.include_router(reports.router)
+app.include_router(insights.router)
 app.include_router(exports.router)
 app.include_router(payments.router)
 app.include_router(webhooks.router)
 app.include_router(admin.router)
-
-
+app.include_router(premium_intelligence.router)
 
 # ROOT
 
 @app.get("/")
 def root():
     logger.info("Health check endpoint called")
-    return {"message": "Simple Sales & Inventory API is running"}
+    return {"message": "Saleszy API is running"}
 
 

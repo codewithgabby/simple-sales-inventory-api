@@ -1,6 +1,6 @@
 # models/sales.py
 
-from sqlalchemy import Column, Index, Integer, DateTime, ForeignKey, Numeric
+from sqlalchemy import Column, Index, Integer, DateTime, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -23,6 +23,8 @@ class Sale(Base):
         index=True,
     )
 
+    request_id = Column(String, nullable=False)
+
     items = relationship(
         "SaleItem",
         back_populates="sale",
@@ -33,4 +35,5 @@ class Sale(Base):
     # Composite index for business and date filtering
     __table_args__ = (
         Index("ix_sales_business_created", "business_id", "created_at"),
+        UniqueConstraint("business_id", "request_id", name="uq_business_request_id"),
     )

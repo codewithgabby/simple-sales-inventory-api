@@ -18,10 +18,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 def decode_access_token(token: str):
     try:
-        return jwt.decode(
+        payload = jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
+        
+        # Ensure the token type is "access"
+        if payload.get("type") != "access":
+            return None
+        
+        return payload
+    
     except JWTError:
         return None

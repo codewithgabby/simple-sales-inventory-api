@@ -15,7 +15,7 @@ class User(Base):
 
     business_id = Column(
         Integer, 
-        ForeignKey("businesses.id"), 
+        ForeignKey("businesses.id", ondelete="CASCADE"), 
         nullable=False,
     )
     

@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
+import logging
 
 from app.database import get_db
 from app.models.business import Business
@@ -14,6 +15,8 @@ from app.core.jwt import create_access_token
 from app.core.rate_limiter import limiter
 from app.core.config import settings
 from app.core.email import send_password_reset_email
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -110,21 +113,28 @@ def forgot_password(request: Request, email: str, db: Session = Depends(get_db))
         token_hash = hash_password(raw_token)
 
         user.reset_token_hash = token_hash
-        user.reset_token_expires_at = datetime.utcnow() + timedelta(
+        user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(
             minutes=settings.PASSWORD_RESET_EXPIRE_MINUTES
         )
 
         db.commit()
 
         reset_link = f"{settings.FRONTEND_RESET_URL}?token={raw_token}"
+    try:    
         send_password_reset_email(user.email, reset_link)
+    except Exception as e:
+        # Log error but don't crash endpoint
+        logger.error(f"Failed to send password reset email: {str(e)}")
+        
 
     return {"message": "If the email exists, a reset link has been sent."}
 
 
 # ---------------- RESET PASSWORD ----------------
 @router.post("/reset-password")
+@limiter.limit("5/minute")
 def reset_password(
+    request: Request,
     token: str,
     new_password: str,
     db: Session = Depends(get_db),
@@ -136,7 +146,7 @@ def reset_password(
     for u in users:
         if (
             u.reset_token_expires_at
-            and u.reset_token_expires_at > datetime.utcnow()
+            and u.reset_token_expires_at > datetime.now(timezone.utc)
             and verify_password(token, u.reset_token_hash)
         ):
             matched_user = u

@@ -11,6 +11,7 @@ class SalesReportResponse(BaseModel):
     total_sales: Decimal
     total_cost: Decimal
     total_profit: Decimal
+    profit_margin_percentage: Decimal
     total_orders: int
     total_items_sold: int
     start_date: date

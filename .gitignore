@@ -43,3 +43,5 @@ payload.json
 
 # Alembic
 alembic/versions/__pycache__/
+
+app/bootstrap/create_admin.py

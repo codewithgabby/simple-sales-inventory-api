@@ -22,7 +22,8 @@ from app.routers import (
     exports,
     payments,
     webhooks,
-    admin,
+    admin, 
+    subscription,
 )      
 
 
@@ -102,6 +103,7 @@ app.include_router(payments.router)
 app.include_router(webhooks.router)
 app.include_router(admin.router)
 app.include_router(premium_intelligence.router)
+app.include_router(subscription.router)
 
 # ROOT
 

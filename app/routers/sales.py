@@ -174,6 +174,32 @@ def list_sales(
 
 
 # =========================================================
+# GET ALL SALES (FOR DASHBOARD METRICS ONLY)
+# =========================================================
+@router.get("/all", response_model=list[SaleResponse])
+def list_all_sales_for_dashboard(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    subscription = get_active_subscription(db, current_user.business_id)
+
+    query = (
+        db.query(Sale)
+        .options(joinedload(Sale.items))
+        .filter(Sale.business_id == current_user.business_id)
+        .order_by(Sale.created_at.desc())
+    )
+
+    # FREE USERS → ONLY LAST 7 DAYS
+    if not subscription:
+        seven_days_ago = datetime.utcnow() - timedelta(days=6)
+        query = query.filter(Sale.created_at >= seven_days_ago)
+
+    return query.all()
+
+
+
+# =========================================================
 # GET SINGLE SALE (SECURE AGAINST HISTORY BYPASS)
 # =========================================================
 @router.get("/{sale_id}", response_model=SaleResponse)
@@ -211,4 +237,5 @@ def get_sale(
                 detail="Upgrade to access historical sales",
             )
 
-    return sale
+    return sale  
+

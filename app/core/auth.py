@@ -28,7 +28,7 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
         )
-    
+
     try:
         user_id = int(user_id)
     except (TypeError, ValueError):
@@ -44,8 +44,13 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
-    
-    if user.business and user.business.is_suspended:
+
+    # 🔥 FIXED: Allow admins to bypass suspension
+    if (
+        user.business
+        and user.business.is_suspended
+        and not user.is_admin
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Business account suspended. Contact support.",
@@ -53,10 +58,10 @@ def get_current_user(
 
     return user
 
+
 def get_admin_user(
     current_user: User = Depends(get_current_user),
-):  
-    # Ensure the user has admin privileges 
+):
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

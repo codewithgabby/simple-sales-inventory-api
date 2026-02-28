@@ -64,7 +64,14 @@ def add_inventory(
     db.commit()
     db.refresh(inventory)
 
-    return inventory
+    return {
+        "id": inventory.id,
+        "product_id": inventory.product_id,
+        "product_name": inventory.product.name,
+        "quantity_available": inventory.quantity_available,
+        "low_stock_threshold": inventory.low_stock_threshold,
+        "expiry_date": inventory.expiry_date,
+    }
 
 
 @router.put("/{product_id}", response_model=InventoryResponse)
@@ -109,7 +116,14 @@ def update_inventory(
     db.commit()
     db.refresh(inventory)
 
-    return inventory
+    return {
+        "id": inventory.id,
+        "product_id": inventory.product_id,
+        "product_name": inventory.product.name,
+        "quantity_available": inventory.quantity_available,
+        "low_stock_threshold": inventory.low_stock_threshold,
+        "expiry_date": inventory.expiry_date,
+    }
 
 
 @router.get("", response_model=list[InventoryResponse])
@@ -117,9 +131,21 @@ def list_inventory(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return (
+    inventory_items = (
         db.query(Inventory)
         .join(Product)
         .filter(Product.business_id == current_user.business_id)
         .all()
     )
+
+    return [
+        {
+            "id": item.id,
+            "product_id": item.product_id,
+            "product_name": item.product.name,
+            "quantity_available": item.quantity_available,
+            "low_stock_threshold": item.low_stock_threshold,
+            "expiry_date": item.expiry_date,
+        }
+        for item in inventory_items
+    ]

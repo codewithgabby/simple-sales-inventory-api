@@ -15,6 +15,7 @@ class InventoryUpdate(BaseModel):
 class InventoryResponse(BaseModel):
     id: int
     product_id: int
+    product_name: str
     quantity_available: int
     low_stock_threshold: int
     expiry_date: date | None

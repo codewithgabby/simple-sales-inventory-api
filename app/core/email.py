@@ -9,7 +9,7 @@ def send_password_reset_email(to_email: str, reset_link: str):
     payload = {
         "from": settings.RESEND_FROM_EMAIL,
         "to": [to_email],
-        "subject": "Reset your Simple Sales password",
+        "subject": "Reset your Saleszy password",
         "text": f"""
 Hi,
 
@@ -22,7 +22,7 @@ This link will expire in {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes.
 
 If you did not request this, you can safely ignore this email.
 
-— Simple Sales Team
+— Saleszy Team
 """,
     }
 

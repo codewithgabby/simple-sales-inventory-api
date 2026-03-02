@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str
-    ALGORITHM: Literal["HS256"] = "HS512"
+    ALGORITHM: Literal["HS256", "HS512"] = "HS512"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # Database

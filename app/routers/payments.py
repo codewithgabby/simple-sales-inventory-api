@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 import requests
 import logging
 from datetime import datetime, timezone
+from typing import Literal
 
 from app.database import get_db
 from app.core.auth import get_current_user
@@ -34,7 +35,7 @@ PAYSTACK_SECRET_KEY = settings.PAYSTACK_SECRET_KEY
 
 @router.post("/initialize")
 def initialize_payment(
-    period_type: str,
+    period_type: Literal["weekly", "monthly"],
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):

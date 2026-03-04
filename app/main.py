@@ -1,10 +1,11 @@
 # Main application file
-
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 import logging
 import time
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -45,7 +46,16 @@ app = FastAPI(
     version="1.0.0",
 )
 
-
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=[
+        "saleszy.com.ng",
+        "saleszy.netlify.app",
+        "api.saleszy.com.ng",
+        "localhost",
+        "127.0.0.1"
+    ],
+)
 
 # CORS (Token-based auth)
 
@@ -114,4 +124,22 @@ def root():
     logger.info("Health check endpoint called")
     return {"message": "Saleszy API is running"}
 
+@app.on_event("startup")
+def check_db_connection():
+    try:
+        with engine.connect() as connection:
+            pass
+        logger.info("Database connection successful")
+    except Exception as e:
+        logger.error(f"Database connection failed")
+        raise e    
 
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
+    )

@@ -138,8 +138,12 @@ async def paystack_webhook(
         transaction_reference=reference,
     )
 
-    db.add(access)
-    db.commit()
+    try:
+        db.add(access)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise    
 
     logger.info(
         f"Subscription activated for business {business_id} ({period_type})"

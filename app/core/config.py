@@ -5,7 +5,7 @@ from typing import Literal
 
 class Settings(BaseSettings):
     # App
-    ENV: str = "development"
+    ENV: Literal["development", "staging", "production"] = "development"
     DEBUG: bool = False
 
     # Security

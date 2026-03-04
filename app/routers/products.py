@@ -1,6 +1,7 @@
 # app/routers/products.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -113,7 +114,7 @@ def update_product(
         )
 
     if product_data.name is not None:
-        product.name = product_data.name
+        func.lower(product.name) == product_data.name.lower()
 
     if product_data.cost_price is not None:
         product.cost_price = product_data.cost_price

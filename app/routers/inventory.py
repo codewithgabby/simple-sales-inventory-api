@@ -1,7 +1,7 @@
 # app/routers/inventory.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.core.auth import get_current_user
@@ -133,6 +133,7 @@ def list_inventory(
 ):
     inventory_items = (
         db.query(Inventory)
+        .options(joinedload(Inventory.product))
         .join(Product)
         .filter(Product.business_id == current_user.business_id)
         .all()

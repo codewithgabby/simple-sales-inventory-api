@@ -147,7 +147,7 @@ def reset_password(
     for u in users:
         if (
             u.reset_token_expires_at
-            and u.reset_token_expires_at > datetime.utcnow()
+            and u.reset_token_expires_at > datetime.now(timezone.utc)
             and verify_password(token, u.reset_token_hash)
         ):
             matched_user = u

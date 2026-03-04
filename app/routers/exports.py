@@ -85,7 +85,7 @@ def _generate_export(db: Session, business_id: int, period_type: str, start_date
 
     sales = (
         db.query(Sale)
-        .options(joinedload(Sale.items))
+        .options(joinedload(Sale.items).joinedload(SaleItem.product))
         .filter(
             Sale.business_id == business_id,
             Sale.created_at.between(start_dt, end_dt),
@@ -146,14 +146,7 @@ def _build_excel(
         total_revenue += sale.total_amount
 
         for item in sale.items:
-            if item.product_id not in product_cache:
-                product_cache[item.product_id] = (
-                    db.query(Product)
-                    .filter(Product.id == item.product_id)
-                    .first()
-                )
-
-            product = product_cache[item.product_id]
+            product = item.product
 
             sheet.append([
                 sale.created_at.strftime("%Y-%m-%d"),

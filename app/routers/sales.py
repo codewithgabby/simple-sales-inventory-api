@@ -159,7 +159,7 @@ def list_sales(
 
     #  FREE USERS → ONLY LAST 7 DAYS
     if not subscription:
-        seven_days_ago = datetime.utcnow() - timedelta(days=6)
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
         query = query.filter(Sale.created_at >= seven_days_ago)
 
     sales = (
@@ -192,7 +192,7 @@ def list_all_sales_for_dashboard(
 
     # FREE USERS → ONLY LAST 7 DAYS
     if not subscription:
-        seven_days_ago = datetime.utcnow() - timedelta(days=6)
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
         query = query.filter(Sale.created_at >= seven_days_ago)
 
     return query.all()

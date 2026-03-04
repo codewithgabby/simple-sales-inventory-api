@@ -1,13 +1,13 @@
 # schemas/sale.py
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List
 from decimal import Decimal
 
 class SaleItemCreate(BaseModel):
     product_id: int
-    quantity: int
+    quantity: int = Field(..., gt=0)
 
 class SaleCreate(BaseModel):
     request_id: str

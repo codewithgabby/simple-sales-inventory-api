@@ -25,14 +25,14 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: str | None = None
-    cost_price: float | None = None
-    selling_price: float | None = None    
+    cost_price: Decimal | None = None
+    selling_price: Decimal | None = None
 
 class ProductResponse(BaseModel):
     id: int
     name: str
-    cost_price: float
-    selling_price: float
+    cost_price: Decimal
+    selling_price: Decimal
     created_at: datetime
 
     class Config:

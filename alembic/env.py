@@ -56,6 +56,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            compare_type=True,  # Detect column type changes  
         )
 
         with context.begin_transaction():

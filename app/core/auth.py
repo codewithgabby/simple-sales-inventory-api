@@ -37,7 +37,7 @@ def get_current_user(
             detail="Invalid token payload",
         )
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == user_id).one_or_none()
 
     if user is None:
         raise HTTPException(
@@ -45,7 +45,7 @@ def get_current_user(
             detail="User not found",
         )
 
-    # 🔥 FIXED: Allow admins to bypass suspension
+    #  FIXED: Allow admins to bypass suspension
     if (
         user.business
         and user.business.is_suspended

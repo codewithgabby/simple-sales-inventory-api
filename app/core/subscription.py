@@ -11,7 +11,7 @@ from app.models.export_access import ExportAccess
 def get_active_subscription(db: Session, business_id: int):
     today = datetime.now(timezone.utc).date()
 
-    return (
+    subscription = (
         db.query(ExportAccess)
         .filter(
             ExportAccess.business_id == business_id,
@@ -19,14 +19,24 @@ def get_active_subscription(db: Session, business_id: int):
             ExportAccess.end_date >= today,
         )
         .order_by(ExportAccess.end_date.desc())
-        .first()
+        .all()
     )
+
+    if not subscription:
+        return None
+    
+    # monthly takes priority if both exist
+    for sub in subscription:
+        if sub.period_type == "monthly":
+            return sub
+        
+    return subscription[0]     
 
 
 def require_subscription(db: Session, business_id: int, period_type: str):
     today = datetime.now(timezone.utc).date()
 
-    return (
+    subscription = (
         db.query(ExportAccess)
         .filter(
             ExportAccess.business_id == business_id,
@@ -37,3 +47,5 @@ def require_subscription(db: Session, business_id: int, period_type: str):
         .order_by(ExportAccess.end_date.desc())
         .first()
     )
+
+    return subscription

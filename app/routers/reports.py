@@ -25,10 +25,11 @@ from calendar import monthrange
 
 from app.database import get_db
 from app.core.auth import get_current_user
-from app.core.subscription import require_subscription
+from app.core.subscription import require_subscription, get_active_subscription
 from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
+from app.models.inventory import Inventory
 from app.schemas.report import (
     SalesReportResponse,
     ProductProfitReportResponse,
@@ -438,3 +439,88 @@ def profit_trend(
           })
 
     return trend_data
+
+
+# =========================================================
+# END OF DAY BUSINESS SUMMARY
+# =========================================================
+@router.get("/end-of-day")
+def end_of_day_summary(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    today = datetime.now(timezone.utc).date()
+
+    summary = _calculate_report(
+        db,
+        current_user.business_id,
+        today,
+        today,
+    )
+
+    # Check if user has ANY active subscription
+    subscription = get_active_subscription(
+        db,
+        current_user.business_id,
+    )
+
+    top_product_name = None
+    low_stock_products = []
+
+    # Premium features only
+    if subscription:
+
+        # Top selling product
+        top_product = (
+            db.query(
+                Product.name,
+                func.sum(SaleItem.quantity).label("qty")
+            )
+            .join(SaleItem, SaleItem.product_id == Product.id)
+            .join(Sale, SaleItem.sale_id == Sale.id)
+            .filter(
+                Sale.business_id == current_user.business_id,
+                func.date(Sale.created_at) == today
+            )
+            .group_by(Product.name)
+            .order_by(func.sum(SaleItem.quantity).desc())
+            .first()
+        )
+
+        if top_product:
+            top_product_name = top_product.name
+
+        # Low stock alerts
+        low_stock = (
+            db.query(
+                Product.name,
+                Inventory.quantity_available
+            )
+            .join(Inventory, Inventory.product_id == Product.id)
+            .filter(
+                Product.business_id == current_user.business_id,
+                Inventory.quantity_available <= Inventory.low_stock_threshold
+            )
+            .order_by(Inventory.quantity_available.asc())
+            .limit(3)
+            .all()
+        )
+
+        low_stock_products = [
+            {
+                "product_name": item.name,
+                "quantity_left": item.quantity_available
+            }
+            for item in low_stock
+        ]
+
+    return {
+        "date": today,
+        "total_sales": summary["total_sales"],
+        "total_cost": summary["total_cost"],
+        "total_profit": summary["total_profit"],
+        "total_orders": summary["total_orders"],
+        "total_items_sold": summary["total_items_sold"],
+        "top_selling_product": top_product_name,
+        "low_stock_products": low_stock_products,
+    }

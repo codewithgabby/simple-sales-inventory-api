@@ -62,6 +62,7 @@ def signup(request: Request, user_data: UserCreate, db: Session = Depends(get_db
             email=user_data.email,
             password_hash=hash_password(user_data.password),
             business_id=business.id,
+            phone_number=user_data.phone_number,
         )
         db.add(user)
         db.commit()

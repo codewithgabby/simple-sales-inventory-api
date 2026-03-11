@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.notifications.scheduler import start_scheduler
 from app.database import engine, Base
 from app.core.rate_limiter import limiter
 from app.core.config import settings
@@ -25,6 +26,7 @@ from app.routers import (
     webhooks,
     admin, 
     subscription,
+    notifications,
 )      
 
 
@@ -116,6 +118,7 @@ app.include_router(webhooks.router)
 app.include_router(admin.router)
 app.include_router(premium_intelligence.router)
 app.include_router(subscription.router)
+app.include_router(notifications.router)
 
 # ROOT
 
@@ -130,6 +133,9 @@ def check_db_connection():
         with engine.connect() as connection:
             pass
         logger.info("Database connection successful")
+
+        start_scheduler()
+
     except Exception as e:
         logger.error(f"Database connection failed")
         raise e    

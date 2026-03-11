@@ -18,6 +18,8 @@ class User(Base):
         ForeignKey("businesses.id", ondelete="CASCADE"), 
         nullable=False,
     )
+
+    phone_number = Column(String, nullable=True)
     
     # Admin flag to differentiate between regular users and business owners
     is_admin = Column(Boolean, default=False, nullable=False)

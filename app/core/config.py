@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Paystack
     PAYSTACK_SECRET_KEY: str | None = None
 
+    # Termii
+    TERMII_API_KEY: str | None = None
+
     # Email (Resend)
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str

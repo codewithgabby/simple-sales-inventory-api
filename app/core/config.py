@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # SMS Sender ID (for Termii)
     TERMII_SENDER_ID: str | None = None
 
+    # Internal admin secret for bypassing authentication in special cases (e.g., internal tools)
+    INTERNAL_ADMIN_SECRET: str | None = None
+
     # Email (Resend)
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str

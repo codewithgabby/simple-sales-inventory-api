@@ -18,3 +18,22 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class PhoneUpdate(BaseModel):
+    phone_number: str = Field(
+        ...,
+        min_length=10,
+        max_length=15,
+        description="Phone number for SMS notifications"
+    )
+
+
+class UserProfileResponse(BaseModel):
+    email: EmailStr
+    business_name: str
+    phone_number: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

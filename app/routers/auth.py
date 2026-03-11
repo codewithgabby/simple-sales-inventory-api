@@ -6,15 +6,17 @@ from datetime import datetime, timedelta, timezone
 import secrets
 import logging
 
+from app.utils.phone import format_nigerian_phone
 from app.database import get_db
 from app.models.business import Business
 from app.models.users import User
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, PhoneUpdate, UserProfileResponse
 from app.core.hashing import hash_password, verify_password
 from app.core.jwt import create_access_token
 from app.core.rate_limiter import limiter
 from app.core.config import settings
 from app.core.email import send_password_reset_email
+from app.core.current_user import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +146,7 @@ def reset_password(
 
     matched_user = None
     
-    # 
+    # Iterate through users with valid reset tokens to find a match
     for u in users:
         if (
             u.reset_token_expires_at
@@ -167,3 +169,39 @@ def reset_password(
     db.commit()
 
     return {"message": "Password reset successful. Please login."}
+
+
+# ---------------- UPDATE PHONE NUMBER ----------------
+@router.put("/phone")
+@limiter.limit("5/minute")
+def update_phone_number(
+    request: Request,
+    data: PhoneUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+
+    formatted_phone = format_nigerian_phone(data.phone_number)
+
+    current_user.phone_number = formatted_phone
+
+    db.commit()
+
+    return {
+        "message": "Phone number updated successfully",
+        "phone_number": formatted_phone
+    }
+
+
+# ---------------- GET USER PROFILE ----------------
+@router.get("/me", response_model=UserProfileResponse)
+def get_profile(
+    current_user: User = Depends(get_current_user),
+):
+
+    return {
+        "email": current_user.email,
+        "business_name": current_user.business.name,
+        "phone_number": current_user.phone_number,
+        "created_at": current_user.created_at
+    }

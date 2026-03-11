@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Termii
     TERMII_API_KEY: str | None = None
 
+    # SMS Sender ID (for Termii)
+    TERMII_SENDER_ID: str | None = None
+
     # Email (Resend)
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str

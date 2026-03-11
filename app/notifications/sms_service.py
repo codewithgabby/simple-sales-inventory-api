@@ -9,7 +9,7 @@ def send_sms(phone_number: str, message: str):
 
     payload = {
         "to": phone_number,
-        "from": "Saleszy",
+        "from": "settings.TERMII_SENDER_ID",
         "sms": message,
         "type": "plain",
         "channel": "generic",

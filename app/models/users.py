@@ -19,7 +19,7 @@ class User(Base):
         nullable=False,
     )
 
-    phone_number = Column(String, nullable=True)
+    phone_number = Column(String, unique=True, nullable=True, index=True)
     
     # Admin flag to differentiate between regular users and business owners
     is_admin = Column(Boolean, default=False, nullable=False)

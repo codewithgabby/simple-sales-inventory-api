@@ -30,7 +30,6 @@ COMMON_PASSWORDS = {
     "admin123",
 }
 
-
 # ---------------- SIGNUP ----------------
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/minute")
@@ -55,6 +54,22 @@ def signup(request: Request, user_data: UserCreate, db: Session = Depends(get_db
     if db.query(Business).filter(Business.name == user_data.business_name).first():
         raise HTTPException(status_code=409, detail="Business name already exists")
 
+    # Format phone number
+    formatted_phone = format_nigerian_phone(user_data.phone_number)
+
+    # Check if phone number already exists
+    existing_phone = (
+        db.query(User)
+        .filter(User.phone_number == formatted_phone)
+        .first()
+    )
+
+    if existing_phone:
+        raise HTTPException(
+            status_code=409,
+            detail="Phone number already used by another business"
+        )
+
     try:
         business = Business(name=user_data.business_name)
         db.add(business)
@@ -64,8 +79,9 @@ def signup(request: Request, user_data: UserCreate, db: Session = Depends(get_db
             email=user_data.email,
             password_hash=hash_password(user_data.password),
             business_id=business.id,
-            phone_number=user_data.phone_number,
+            phone_number=formatted_phone,
         )
+
         db.add(user)
         db.commit()
 
@@ -183,6 +199,19 @@ def update_phone_number(
 
     formatted_phone = format_nigerian_phone(data.phone_number)
 
+    # Check if phone number already belongs to another business
+    existing_user = (
+        db.query(User)
+        .filter(User.phone_number == formatted_phone, User.id != current_user.id)
+        .first()
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Phone number already used by another business"
+        )
+
     current_user.phone_number = formatted_phone
 
     db.commit()
@@ -191,7 +220,6 @@ def update_phone_number(
         "message": "Phone number updated successfully",
         "phone_number": formatted_phone
     }
-
 
 # ---------------- GET USER PROFILE ----------------
 @router.get("/me", response_model=UserProfileResponse)

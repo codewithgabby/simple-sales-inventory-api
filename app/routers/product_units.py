@@ -1,3 +1,5 @@
+# app/routers/product_units.py
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -35,17 +37,31 @@ def create_unit_conversion(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    if unit_data.unit_name == product.base_unit:
+    unit_name = unit_data.unit_name.strip()
+
+    if not unit_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Unit name cannot be empty",
+        )
+
+    if unit_name.lower() == product.base_unit.lower():
         raise HTTPException(
             status_code=400,
             detail="Unit cannot be the same as the base unit",
+        )
+
+    if unit_data.conversion_rate <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Conversion rate must be greater than zero",
         )
 
     existing_unit = (
         db.query(ProductUnitConversion)
         .filter(
             ProductUnitConversion.product_id == product_id,
-            ProductUnitConversion.unit_name == unit_data.unit_name,
+            ProductUnitConversion.unit_name.ilike(unit_name),
         )
         .first()
     )
@@ -58,7 +74,7 @@ def create_unit_conversion(
 
     unit = ProductUnitConversion(
         product_id=product_id,
-        unit_name=unit_data.unit_name,
+        unit_name=unit_name,
         conversion_rate=unit_data.conversion_rate,
     )
 

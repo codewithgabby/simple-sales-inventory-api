@@ -133,11 +133,23 @@ def update_product(
         else product.selling_price
     )
 
+    if new_cost_price < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cost price cannot be negative"
+    )
+
+    if new_selling_price <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Selling price must be greater than zero"
+    )
+
     if new_selling_price < new_cost_price:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Selling price cannot be lower than cost price",
-        )
+            status_code=400,
+            detail="Selling price cannot be lower than cost price"
+    )
 
     if product_data.name is not None:
         product.name = product_data.name

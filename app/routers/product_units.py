@@ -86,7 +86,7 @@ def create_unit_conversion(
 
 
 # =========================================================
-# LIST PRODUCT UNITS
+# LIST PRODUCT UNITS (INCLUDES BASE UNIT)
 # =========================================================
 @router.get("", response_model=list[ProductUnitResponse])
 def list_product_units(
@@ -106,13 +106,20 @@ def list_product_units(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    units = (
+    conversions = (
         db.query(ProductUnitConversion)
         .filter(ProductUnitConversion.product_id == product_id)
         .all()
     )
 
-    return units
+    # Include base unit as the first option
+    base_unit = ProductUnitResponse(
+        id=0,
+        unit_name=product.base_unit,
+        conversion_rate=1
+    )
+
+    return [base_unit] + conversions
 
 
 # =========================================================

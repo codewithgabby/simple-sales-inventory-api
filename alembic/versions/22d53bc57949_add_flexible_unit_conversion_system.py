@@ -44,7 +44,18 @@ def upgrade() -> None:
 
     # Step 3: enforce NOT NULL
     op.alter_column('products', 'base_unit', nullable=False)
-    op.add_column('sale_items', sa.Column('unit_name', sa.String(), nullable=False))
+
+
+    # Step 1: add column as nullable
+    op.add_column('sale_items', sa.Column('unit_name', sa.String(), nullable=True))
+
+    # Step 2: populate existing rows with default value
+    op.execute("UPDATE sale_items SET unit_name = 'Unit' WHERE unit_name IS NULL")
+
+    # Step 3: enforce NOT NULL
+    op.alter_column('sale_items', 'unit_name', nullable=False)
+
+    
     op.alter_column('sale_items', 'quantity',
                existing_type=sa.INTEGER(),
                type_=sa.Numeric(precision=14, scale=4),

@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.routers import (
     auth,
     products,
+    product_units,
     inventory,
     sales,
     reports,
@@ -108,6 +109,7 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(auth.router)
 app.include_router(products.router)
+app.include_router(product_units.router)
 app.include_router(inventory.router)
 app.include_router(sales.router)
 app.include_router(reports.router)

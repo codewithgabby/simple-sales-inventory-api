@@ -54,6 +54,7 @@ def create_product(
 
     product = Product(
         name=product_data.name,
+        base_unit=product_data.base_unit, 
         cost_price=product_data.cost_price,
         selling_price=product_data.selling_price,
         business_id=current_user.business_id,
@@ -104,8 +105,17 @@ def update_product(
         )
 
     # Validate prices if either is being updated
-    new_cost_price = product_data.cost_price if product_data.cost_price is not None else product.cost_price
-    new_selling_price = product_data.selling_price if product_data.selling_price is not None else product.selling_price
+    new_cost_price = (
+        product_data.cost_price
+        if product_data.cost_price is not None
+        else product.cost_price
+    )
+
+    new_selling_price = (
+        product_data.selling_price
+        if product_data.selling_price is not None
+        else product.selling_price
+    )
 
     if new_selling_price < new_cost_price:
         raise HTTPException(
@@ -114,7 +124,10 @@ def update_product(
         )
 
     if product_data.name is not None:
-        func.lower(product.name) == product_data.name.lower()
+        product.name = product_data.name
+
+    if product_data.base_unit is not None:
+        product.base_unit = product_data.base_unit
 
     if product_data.cost_price is not None:
         product.cost_price = product_data.cost_price
@@ -148,7 +161,7 @@ def delete_product(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
         )
-    
+
     # IMPORTANT BUSINESS RULE:
     # Prevent deleting products that already have sales
     has_sales = (

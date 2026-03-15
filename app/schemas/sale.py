@@ -5,22 +5,38 @@ from datetime import datetime
 from typing import List
 from decimal import Decimal
 
+
 class SaleItemCreate(BaseModel):
     product_id: int
-    quantity: int = Field(..., gt=0)
+
+    # quantity sold in the chosen unit
+    quantity: Decimal = Field(..., gt=0)
+
+    # NEW FIELD
+    # unit used during the sale
+    # examples: Cup, Kongo, Bag, Tablet, Pack
+    unit: str
+
 
 class SaleCreate(BaseModel):
     request_id: str
     items: List[SaleItemCreate]
 
+
 class SaleItemResponse(BaseModel):
     product_id: int
-    quantity: int
+
+    quantity: Decimal
+
+    # return the unit used during the sale
+    unit_name: str
+
     selling_price: Decimal
     line_total: Decimal
 
     class Config:
         from_attributes = True
+
 
 class SaleResponse(BaseModel):
     id: int
@@ -30,7 +46,3 @@ class SaleResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-
-

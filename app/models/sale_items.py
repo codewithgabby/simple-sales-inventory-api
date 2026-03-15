@@ -1,6 +1,6 @@
 # app/models/sale_items.py
 
-from sqlalchemy import Column, Integer, ForeignKey, Numeric, CheckConstraint
+from sqlalchemy import Column, Integer, ForeignKey, Numeric, CheckConstraint, String
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -24,7 +24,14 @@ class SaleItem(Base):
         index=True,
     )
 
-    quantity = Column(Integer, nullable=False)
+    # Quantity sold (in the unit chosen during the sale)
+    quantity = Column(Numeric(14, 4), nullable=False)
+
+    # NEW COLUMN
+    # Stores the unit used during the sale
+    # Example: Cup, Kongo, Bag, Tablet, Pack
+    unit_name = Column(String, nullable=False)
+
     selling_price = Column(Numeric(10, 2), nullable=False)
     line_total = Column(Numeric(10, 2), nullable=False)
 

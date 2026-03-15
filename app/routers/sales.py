@@ -25,6 +25,7 @@ from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
 from app.models.inventory import Inventory
+from app.models.product_units import ProductUnitConversion
 from app.schemas.sale import SaleCreate, SaleResponse
 from app.core.rate_limiter import limiter
 
@@ -50,7 +51,7 @@ def create_sale(
         raise HTTPException(status_code=400, detail="Duplicate products in sale are not allowed")
 
     # ===============================
-    # IDEMPOTENCY CHECK (DOUBLE CLICK PROTECTION)
+    # IDEMPOTENCY CHECK
     # ===============================
     existing_sale = (
         db.query(Sale)
@@ -63,8 +64,6 @@ def create_sale(
 
     if existing_sale:
         return existing_sale
-
-
 
     total_amount = Decimal("0.00")
     sale_items_objects = []
@@ -105,19 +104,62 @@ def create_sale(
             if not inventory:
                 raise HTTPException(status_code=400, detail=f"No inventory for {product.name}")
 
-            if inventory.quantity_available < item.quantity:
-                raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.name}")
+            # ====================================
+            # UNIT CONVERSION LOGIC
+            # ====================================
 
-            line_total = product.selling_price * item.quantity
+            sale_unit = item.unit
+            quantity = Decimal(item.quantity)
+
+            if sale_unit == product.base_unit:
+                deduction = quantity
+            else:
+                conversion = (
+                    db.query(ProductUnitConversion)
+                    .filter(
+                        ProductUnitConversion.product_id == product.id,
+                        ProductUnitConversion.unit_name == sale_unit,
+                    )
+                    .first()
+                )
+
+                if not conversion:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Unit '{sale_unit}' is not defined for {product.name}",
+                    )
+
+                deduction = quantity * Decimal(conversion.conversion_rate)
+
+            # ====================================
+            # STOCK CHECK
+            # ====================================
+
+            if inventory.quantity_available < deduction:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for {product.name}",
+                )
+
+            # ====================================
+            # LINE TOTAL
+            # ====================================
+
+            line_total = product.selling_price * quantity
             total_amount += line_total
 
-            inventory.quantity_available -= item.quantity
+            # ====================================
+            # DEDUCT INVENTORY
+            # ====================================
+
+            inventory.quantity_available -= deduction
 
             sale_items_objects.append(
                 SaleItem(
                     sale_id=sale.id,
                     product_id=product.id,
-                    quantity=item.quantity,
+                    quantity=quantity,
+                    unit_name=sale_unit,
                     selling_price=product.selling_price,
                     line_total=line_total,
                 )
@@ -157,7 +199,6 @@ def list_sales(
         .filter(Sale.business_id == current_user.business_id)
     )
 
-    #  FREE USERS → ONLY LAST 7 DAYS
     if not subscription:
         seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
         query = query.filter(Sale.created_at >= seven_days_ago)
@@ -190,7 +231,6 @@ def list_all_sales_for_dashboard(
         .order_by(Sale.created_at.desc())
     )
 
-    # FREE USERS → ONLY LAST 7 DAYS
     if not subscription:
         seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
         query = query.filter(Sale.created_at >= seven_days_ago)
@@ -198,9 +238,8 @@ def list_all_sales_for_dashboard(
     return query.all()
 
 
-
 # =========================================================
-# GET SINGLE SALE (SECURE AGAINST HISTORY BYPASS)
+# GET SINGLE SALE
 # =========================================================
 @router.get("/{sale_id}", response_model=SaleResponse)
 def get_sale(
@@ -224,10 +263,8 @@ def get_sale(
             detail="Sale not found",
         )
 
-    #  Enforce 7-day restriction for free users
     subscription = get_active_subscription(db, current_user.business_id)
-    
-    #  FREE USERS -- CHECK IF SALE IS WITHIN LAST 7 DAYS
+
     if not subscription:
         seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
 
@@ -237,5 +274,4 @@ def get_sale(
                 detail="Upgrade to access historical sales",
             )
 
-    return sale  
-
+    return sale

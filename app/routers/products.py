@@ -1,7 +1,6 @@
 # app/routers/products.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -20,6 +19,9 @@ router = APIRouter(
 )
 
 
+# =========================================================
+# CREATE PRODUCT
+# =========================================================
 @router.post(
     "",
     response_model=ProductResponse,
@@ -39,6 +41,7 @@ def create_product(
         )
         .first()
     )
+
     if existing_product:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -52,9 +55,16 @@ def create_product(
             detail="Selling price cannot be lower than cost price",
         )
 
+    # Prevent empty base unit
+    if not product_data.base_unit.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Base unit cannot be empty",
+        )
+
     product = Product(
         name=product_data.name,
-        base_unit=product_data.base_unit, 
+        base_unit=product_data.base_unit.strip(),
         cost_price=product_data.cost_price,
         selling_price=product_data.selling_price,
         business_id=current_user.business_id,
@@ -67,6 +77,9 @@ def create_product(
     return product
 
 
+# =========================================================
+# LIST PRODUCTS
+# =========================================================
 @router.get("", response_model=list[ProductResponse])
 def list_products(
     db: Session = Depends(get_db),
@@ -82,6 +95,9 @@ def list_products(
     return products
 
 
+# =========================================================
+# UPDATE PRODUCT
+# =========================================================
 @router.put("/{product_id}", response_model=ProductResponse)
 def update_product(
     product_id: int,
@@ -127,7 +143,12 @@ def update_product(
         product.name = product_data.name
 
     if product_data.base_unit is not None:
-        product.base_unit = product_data.base_unit
+        if not product_data.base_unit.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Base unit cannot be empty",
+            )
+        product.base_unit = product_data.base_unit.strip()
 
     if product_data.cost_price is not None:
         product.cost_price = product_data.cost_price
@@ -141,6 +162,9 @@ def update_product(
     return product
 
 
+# =========================================================
+# DELETE PRODUCT
+# =========================================================
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_product(
     product_id: int,
@@ -162,7 +186,6 @@ def delete_product(
             detail="Product not found",
         )
 
-    # IMPORTANT BUSINESS RULE:
     # Prevent deleting products that already have sales
     has_sales = (
         db.query(SaleItem)

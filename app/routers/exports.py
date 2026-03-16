@@ -148,16 +148,29 @@ def _build_excel(
         for item in sale.items:
             product = item.product
             
-            quantity_with_unit = f"{int(item.quantity)} {product.base_unit}" if product and product.base_unit else int(item.quantity)
+            if product and product.base_unit:
+                qty = float(item.quantity)
+
+                if qty.is_integer():
+                    qty = int(qty)
+                    
+                unit = product.base_unit
+
+                if qty != 1 and not unit.endswith("s"):
+                    unit = unit + "s"
+
+                quantity_with_unit = f"{qty} {unit}"
+            else:
+                quantity_with_unit = int(item.quantity)
 
             sheet.append([
                 sale.created_at.strftime("%Y-%m-%d"),
                 sale.id,
                 product.name if product else "Deleted product",
                 quantity_with_unit,
-                float(item.selling_price),
-                float(item.line_total),
-                float(sale.total_amount),
+                f"₦{float(item.selling_price):,.2f}",
+                f"₦{float(item.line_total):,.2f}",
+                f"₦{float(sale.total_amount):,.2f}",
             ])
 
     # =======================

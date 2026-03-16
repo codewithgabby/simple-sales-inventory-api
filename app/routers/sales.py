@@ -145,7 +145,7 @@ def create_sale(
             # LINE TOTAL
             # ====================================
 
-            line_total = product.selling_price * quantity
+            line_total = product.selling_price * deduction
             total_amount += line_total
 
             # ====================================
@@ -158,7 +158,7 @@ def create_sale(
                 SaleItem(
                     sale_id=sale.id,
                     product_id=product.id,
-                    quantity=quantity,
+                    quantity=deduction,
                     unit_name=sale_unit,
                     selling_price=product.selling_price,
                     line_total=line_total,

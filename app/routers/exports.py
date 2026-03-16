@@ -148,9 +148,7 @@ def _build_excel(
         for item in sale.items:
             product = item.product
             
-            quantity_with_unit = (
-                f"{item.quantity} {product.base_unit}" if product and product.base_unit else item.quantity
-            )
+            quantity_with_unit = f"{int(item.quantity)} {product.base_unit}" if product and product.base_unit else int(item.quantity)
 
             sheet.append([
                 sale.created_at.strftime("%Y-%m-%d"),

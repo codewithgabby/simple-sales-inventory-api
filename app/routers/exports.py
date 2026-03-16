@@ -147,12 +147,16 @@ def _build_excel(
 
         for item in sale.items:
             product = item.product
+            
+            quantity_with_unit = (
+                f"{item.quantity} {product.base_unit}" if product and product.base_unit else item.quantity
+            )
 
             sheet.append([
                 sale.created_at.strftime("%Y-%m-%d"),
                 sale.id,
                 product.name if product else "Deleted product",
-                item.quantity,
+                quantity_with_unit,
                 float(item.selling_price),
                 float(item.line_total),
                 float(sale.total_amount),

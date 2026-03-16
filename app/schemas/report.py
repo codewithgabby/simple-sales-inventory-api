@@ -21,6 +21,7 @@ class SalesReportResponse(BaseModel):
 class ProductProfitResponse(BaseModel):
     product_id: int
     product_name: str
+    base_unit: str
     total_quantity_sold: int
     total_revenue: Decimal
     total_cost: Decimal

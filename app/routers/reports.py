@@ -126,6 +126,7 @@ def _calculate_product_profit(
         db.query(
             Product.id.label("product_id"),
             Product.name.label("product_name"),
+            Product.base_unit.label("base_unit"),
             func.coalesce(func.sum(SaleItem.quantity), 0).label("total_quantity_sold"),
             func.coalesce(func.sum(SaleItem.line_total), 0).label("total_revenue"),
             func.coalesce(
@@ -138,7 +139,7 @@ def _calculate_product_profit(
             Sale.business_id == business_id,
             Sale.created_at.between(start_dt, end_dt),
         )
-        .group_by(Product.id, Product.name)
+        .group_by(Product.id, Product.name, Product.base_unit)
     )
 
     if search:
@@ -165,6 +166,7 @@ def _calculate_product_profit(
             ProductProfitResponse(
                 product_id=row.product_id,
                 product_name=row.product_name,
+                base_unit=row.base_unit,
                 total_quantity_sold=row.total_quantity_sold,
                 total_revenue=total_revenue,
                 total_cost=total_cost,

@@ -293,6 +293,7 @@ def risk_monitor(
                 "product_id": product.id,
                 "product_name": product.name,
                 "current_stock": inv.quantity_available,
+                "base_unit": product.base_unit,
                 "capital_locked": capital_locked,
                 "reason": "Never sold",
             })
@@ -304,6 +305,7 @@ def risk_monitor(
                     "product_id": product.id,
                     "product_name": product.name,
                     "current_stock": inv.quantity_available,
+                    "base_unit": product.base_unit,
                     "capital_locked": capital_locked,
                     "days_since_last_sale": days_since_sale,
                 })
@@ -312,6 +314,7 @@ def risk_monitor(
                     "product_id": product.id,
                     "product_name": product.name,
                     "current_stock": inv.quantity_available,
+                    "base_unit": product.base_unit,
                     "days_since_last_sale": days_since_sale,
                 })
 
@@ -328,6 +331,7 @@ def risk_monitor(
                     "expiry_date": inv.expiry_date,
                     "days_to_expiry": days_to_expiry,
                     "current_stock": inv.quantity_available,
+                    "base_unit": product.base_unit,
                 })
 
     return {

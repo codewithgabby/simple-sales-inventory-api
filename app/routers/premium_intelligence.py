@@ -198,6 +198,7 @@ def stock_prediction(
             "product_id": inv.product_id,
             "product_name": inv.product.name,
             "current_stock": inv.quantity_available,
+            "base_unit": inv.product.base_unit,
             "average_daily_sales": daily_avg,
             "estimated_days_remaining": days_remaining,
             "stock_status": status_label,

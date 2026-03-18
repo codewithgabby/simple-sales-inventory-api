@@ -65,14 +65,8 @@ app.add_middleware(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://127.0.0.1:5500",
-        "https://localhost:5500",
-        "https://simplesales-web.netlify.app",
-        "https://saleszy.com.ng",
-        "https://saleszy.netlify.app"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

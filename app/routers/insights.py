@@ -157,7 +157,12 @@ def insights_summary(
     product_sales = (
         db.query(
             Product.name,
-            func.coalesce(func.sum(SaleItem.quantity), 0).label("quantity_sold"),
+            func.coalesce(
+                func.sum(
+                    (Product.selling_price - Product.cost_price) * SaleItem.quantity
+                ), 
+                0
+            ).label("profit"),
         )
         .join(SaleItem, SaleItem.product_id == Product.id)
         .join(Sale, SaleItem.sale_id == Sale.id)
@@ -173,7 +178,7 @@ def insights_summary(
     slowest_product = None
 
     if product_sales:
-        sorted_products = sorted(product_sales, key=lambda x: x.quantity_sold, reverse=True)
+        sorted_products = sorted(product_sales, key=lambda x: x.profit, reverse=True)
 
         top_selling_product = sorted_products[0].name
         slowest_product = sorted_products[-1].name

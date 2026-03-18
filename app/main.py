@@ -73,8 +73,8 @@ app.add_middleware(
         "https://saleszy.netlify.app"
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

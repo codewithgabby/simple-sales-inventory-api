@@ -476,7 +476,7 @@ def end_of_day_summary(
         top_product = (
             db.query(
                 Product.name,
-                func.sum(SaleItem.quantity).label("qty")
+                func.sum(SaleItem.line_total).label("revenue")
             )
             .join(SaleItem, SaleItem.product_id == Product.id)
             .join(Sale, SaleItem.sale_id == Sale.id)
@@ -485,7 +485,7 @@ def end_of_day_summary(
                 func.date(Sale.created_at) == today
             )
             .group_by(Product.name)
-            .order_by(func.sum(SaleItem.quantity).desc())
+            .order_by(func.sum(SaleItem.line_total).desc())
             .first()
         )
 

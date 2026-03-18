@@ -496,7 +496,8 @@ def end_of_day_summary(
         low_stock = (
             db.query(
                 Product.name,
-                Inventory.quantity_available
+                Product.base_unit,
+                Inventory.quantity_available,
             )
             .join(Inventory, Inventory.product_id == Product.id)
             .filter(
@@ -511,7 +512,8 @@ def end_of_day_summary(
         low_stock_products = [
             {
                 "product_name": item.name,
-                "quantity_left": item.quantity_available
+                "quantity_left": item.quantity_available,
+                "base_unit": item.base_unit,
             }
             for item in low_stock
         ]

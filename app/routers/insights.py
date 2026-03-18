@@ -157,22 +157,23 @@ def insights_summary(
     product_sales = (
         db.query(
             Product.name,
+            func.coalesce(func.sum(SaleItem.quantity), 0).label("quantity_sold"),
             func.coalesce(
                 func.sum(
                     (Product.selling_price - Product.cost_price) * SaleItem.quantity
-                ), 
+                ),
                 0
             ).label("profit"),
-        )
-        .join(SaleItem, SaleItem.product_id == Product.id)
-        .join(Sale, SaleItem.sale_id == Sale.id)
-        .filter(
-            Sale.business_id == current_user.business_id,
-            Sale.created_at.between(start_dt, end_dt),
-        )
-        .group_by(Product.id, Product.name)
-        .all()
-    )
+   )
+   .join(SaleItem, SaleItem.product_id == Product.id)
+   .join(Sale, SaleItem.sale_id == Sale.id)
+   .filter(
+       Sale.business_id == current_user.business_id,
+       Sale.created_at.between(start_dt, end_dt),
+   )
+   .group_by(Product.id, Product.name)
+   .all()
+)
 
     top_selling_product = None
     slowest_product = None

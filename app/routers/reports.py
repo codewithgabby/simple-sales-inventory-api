@@ -498,9 +498,10 @@ def end_of_day_summary(
         if top_product:
             top_product_name = top_product.name
 
-        # Low stock alerts
+        # Low stock alerts - FIXED: Added product_id
         low_stock = (
             db.query(
+                Product.id,           
                 Product.name,
                 Product.base_unit,
                 Inventory.quantity_available,
@@ -517,6 +518,7 @@ def end_of_day_summary(
 
         low_stock_products = [
             {
+                "product_id": item.id,        
                 "product_name": item.name,
                 "quantity_left": item.quantity_available,
                 "base_unit": item.base_unit,

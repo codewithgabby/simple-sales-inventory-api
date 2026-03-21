@@ -15,9 +15,78 @@ from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
 from app.models.export_access import ExportAccess
+from app.models.product_units import ProductUnitConversion  # ← Fixed import
 from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/exports", tags=["Exports"])
+
+
+# =========================================================
+# UNIT CONVERSION HELPER
+# =========================================================
+def convert_to_readable(quantity: Decimal, product, units_by_product: dict):
+    """Convert quantity to readable format using product units"""
+    
+    # Get units for this product from cache
+    units = units_by_product.get(product.id, [])
+    
+    if not units:
+        # No units configured, use base unit
+        qty = float(quantity)
+        if qty.is_integer():
+            qty = int(qty)
+        unit = product.base_unit or "unit"
+        if qty != 1 and not unit.endswith('s'):
+            unit = unit + 's'
+        return f"{qty} {unit}"
+    
+    # Sort units from largest to smallest
+    sorted_units = sorted(units, key=lambda u: u.conversion_rate, reverse=True)
+    
+    remaining = float(quantity)
+    parts = []
+    
+    for unit in sorted_units:
+        count = int(remaining // unit.conversion_rate)
+        if count > 0:
+            unit_name = unit.unit_name
+            if count == 1:
+                parts.append(f"{count} {unit_name}")
+            else:
+                # Add 's' for plural if needed
+                if not unit_name.endswith('s'):
+                    parts.append(f"{count} {unit_name}s")
+                else:
+                    parts.append(f"{count} {unit_name}")
+            remaining = remaining % unit.conversion_rate
+    
+    # Add remaining base units
+    if remaining > 0:
+        qty = remaining
+        if qty.is_integer():
+            qty = int(qty)
+        unit = product.base_unit or "unit"
+        if qty != 1 and not unit.endswith('s'):
+            unit = unit + 's'
+        parts.append(f"{qty} {unit}")
+    
+    return " ".join(parts)
+
+
+def fetch_units_for_products(db: Session, product_ids: list):
+    """Fetch all units for given products in one query"""
+    units = db.query(ProductUnitConversion).filter(
+        ProductUnitConversion.product_id.in_(product_ids)
+    ).all()
+    
+    # Organize by product_id
+    units_by_product = {}
+    for unit in units:
+        if unit.product_id not in units_by_product:
+            units_by_product[unit.product_id] = []
+        units_by_product[unit.product_id].append(unit)
+    
+    return units_by_product
 
 
 # =========================================================
@@ -92,12 +161,23 @@ def _generate_export(db: Session, business_id: int, period_type: str, start_date
         )
         .all()
     )
+    
+    # Get all unique product IDs from sales
+    product_ids = set()
+    for sale in sales:
+        for item in sale.items:
+            if item.product_id:
+                product_ids.add(item.product_id)
+    
+    # Fetch all units for these products in one go
+    units_by_product = fetch_units_for_products(db, list(product_ids))
 
     subscription = get_active_subscription(db, business_id)
 
     return _build_excel(
         db=db,
         sales=sales,
+        units_by_product=units_by_product,
         business_id=business_id,
         subscription=subscription,
         period_type=period_type,
@@ -113,6 +193,7 @@ def _generate_export(db: Session, business_id: int, period_type: str, start_date
 def _build_excel(
     db: Session,
     sales: list[Sale],
+    units_by_product: dict,
     business_id: int,
     subscription,
     period_type: str,
@@ -139,7 +220,6 @@ def _build_excel(
         "Total Sale Amount",
     ])
 
-    product_cache = {}
     total_revenue = Decimal("0.00")
 
     for sale in sales:
@@ -148,26 +228,25 @@ def _build_excel(
         for item in sale.items:
             product = item.product
             
-            if product and product.base_unit:
-                qty = float(item.quantity)
-
-                if qty.is_integer():
-                    qty = int(qty)
-                    
-                unit = product.base_unit
-
-                if qty != 1 and not unit.endswith("s"):
-                    unit = unit + "s"
-
-                quantity_with_unit = f"{qty} {unit}"
+            if product:
+                # Create a simple object for the product
+                class SimpleProduct:
+                    def __init__(self, id, base_unit):
+                        self.id = id
+                        self.base_unit = base_unit
+                
+                simple_product = SimpleProduct(product.id, product.base_unit)
+                
+                # Convert quantity to readable format
+                readable_qty = convert_to_readable(item.quantity, simple_product, units_by_product)
             else:
-                quantity_with_unit = int(item.quantity)
+                readable_qty = f"{int(item.quantity)} units"
 
             sheet.append([
                 sale.created_at.strftime("%Y-%m-%d"),
                 sale.id,
                 product.name if product else "Deleted product",
-                quantity_with_unit,
+                readable_qty,
                 f"₦{float(item.selling_price):,.2f}",
                 f"₦{float(item.line_total):,.2f}",
                 f"₦{float(sale.total_amount):,.2f}",
@@ -221,7 +300,7 @@ def _build_excel(
         .first()
     )
 
-        # ======================================================
+    # ======================================================
     # PROFIT GROWTH CALCULATION (Premium Insight)
     # ======================================================
 

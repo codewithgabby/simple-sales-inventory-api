@@ -15,7 +15,7 @@ from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
 from app.models.export_access import ExportAccess
-from app.models.product_units import ProductUnitConversion  # ← Fixed import
+from app.models.product_units import ProductUnitConversion
 from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/exports", tags=["Exports"])
@@ -30,24 +30,28 @@ def convert_to_readable(quantity: Decimal, product, units_by_product: dict):
     # Get units for this product from cache
     units = units_by_product.get(product.id, [])
     
+    # Convert Decimal to float for calculations
+    remaining = float(quantity)
+    
     if not units:
         # No units configured, use base unit
-        qty = float(quantity)
-        if qty.is_integer():
-            qty = int(qty)
+        if remaining.is_integer():
+            qty = int(remaining)
+        else:
+            qty = remaining
         unit = product.base_unit or "unit"
         if qty != 1 and not unit.endswith('s'):
             unit = unit + 's'
         return f"{qty} {unit}"
     
     # Sort units from largest to smallest
-    sorted_units = sorted(units, key=lambda u: u.conversion_rate, reverse=True)
+    sorted_units = sorted(units, key=lambda u: float(u.conversion_rate), reverse=True)
     
-    remaining = float(quantity)
     parts = []
     
     for unit in sorted_units:
-        count = int(remaining // unit.conversion_rate)
+        rate = float(unit.conversion_rate)
+        count = int(remaining // rate)
         if count > 0:
             unit_name = unit.unit_name
             if count == 1:
@@ -58,13 +62,14 @@ def convert_to_readable(quantity: Decimal, product, units_by_product: dict):
                     parts.append(f"{count} {unit_name}s")
                 else:
                     parts.append(f"{count} {unit_name}")
-            remaining = remaining % unit.conversion_rate
+            remaining = remaining % rate
     
     # Add remaining base units
     if remaining > 0:
-        qty = remaining
-        if qty.is_integer():
-            qty = int(qty)
+        if remaining.is_integer():
+            qty = int(remaining)
+        else:
+            qty = remaining
         unit = product.base_unit or "unit"
         if qty != 1 and not unit.endswith('s'):
             unit = unit + 's'
@@ -75,6 +80,9 @@ def convert_to_readable(quantity: Decimal, product, units_by_product: dict):
 
 def fetch_units_for_products(db: Session, product_ids: list):
     """Fetch all units for given products in one query"""
+    if not product_ids:
+        return {}
+    
     units = db.query(ProductUnitConversion).filter(
         ProductUnitConversion.product_id.in_(product_ids)
     ).all()
@@ -238,7 +246,15 @@ def _build_excel(
                 simple_product = SimpleProduct(product.id, product.base_unit)
                 
                 # Convert quantity to readable format
-                readable_qty = convert_to_readable(item.quantity, simple_product, units_by_product)
+                try:
+                    readable_qty = convert_to_readable(item.quantity, simple_product, units_by_product)
+                except Exception as e:
+                    print(f"Error converting quantity for product {product.id}: {e}")
+                    # Fallback to simple format
+                    qty = float(item.quantity)
+                    if qty.is_integer():
+                        qty = int(qty)
+                    readable_qty = f"{qty} {product.base_unit or 'units'}"
             else:
                 readable_qty = f"{int(item.quantity)} units"
 

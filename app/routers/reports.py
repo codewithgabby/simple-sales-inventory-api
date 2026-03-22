@@ -185,6 +185,7 @@ def _calculate_product_profit(
 # =========================================================
 # DAILY REPORT (FREE)
 # =========================================================
+
 # =========================================================
 # DAILY REPORT (PROFIT LOCKED FOR FREE USERS)
 # =========================================================
@@ -206,10 +207,10 @@ def daily_report(
     subscription = get_active_subscription(db, current_user.business_id)
     
     if not subscription:
-        # Free user - hide cost, profit, and margin
-        report["total_cost"] = None
-        report["total_profit"] = None
-        report["profit_margin_percentage"] = None
+        # Free user - hide cost, profit, and margin (return "0.00" instead of None)
+        report["total_cost"] = Decimal("0.00")
+        report["total_profit"] = Decimal("0.00")
+        report["profit_margin_percentage"] = Decimal("0.00")
     
     return report
 
@@ -276,10 +277,6 @@ def monthly_report(
 
     return report
 
-
-# =========================================================
-# DAILY PRODUCT PROFIT (FREE)
-# =========================================================
 # =========================================================
 # DAILY PRODUCT PROFIT (LOCKED FOR FREE USERS)
 # =========================================================
@@ -295,13 +292,13 @@ def daily_product_profit(
     subscription = get_active_subscription(db, current_user.business_id)
     
     if not subscription:
-        # Free user - return empty product profit data
+        # Free user - return empty product list
+        today = datetime.now(timezone.utc).date()
         return {
-            "start_date": datetime.now(timezone.utc).date(),
-            "end_date": datetime.now(timezone.utc).date(),
+            "start_date": today,
+            "end_date": today,
             "total_products": 0,
             "results": [],
-            "locked": True  # Add flag to indicate locked
         }
     
     today = datetime.now(timezone.utc).date()
@@ -471,11 +468,9 @@ def profit_trend(
 
     return trend_data
 
-
 # =========================================================
 # END OF DAY BUSINESS SUMMARY
 # =========================================================
-
 @router.get("/end-of-day")
 def end_of_day_summary(
     db: Session = Depends(get_db),
@@ -501,6 +496,7 @@ def end_of_day_summary(
 
     # Premium features only
     if subscription:
+
         # Top selling product
         top_product = (
             db.query(
@@ -568,14 +564,14 @@ def end_of_day_summary(
         }
     
     else:
-        # For FREE users - hide profit and cost
+        # For FREE users - hide profit and cost (return 0 instead of None)
         return {
             "date": today,
             "total_sales": summary["total_sales"],
-            "total_cost": None,  # Hide cost
-            "total_profit": None,  # Hide profit
+            "total_cost": Decimal("0.00"),  # Changed from None
+            "total_profit": Decimal("0.00"),  # Changed from None
             "total_orders": summary["total_orders"],
             "total_items_sold": summary["total_items_sold"],
             "top_selling_product": None,  # Hide top product for free users
-            "low_stock_products": low_stock_products,  # Low stock still shows (premium feature)
+            "low_stock_products": low_stock_products,
         }

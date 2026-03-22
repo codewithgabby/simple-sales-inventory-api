@@ -446,6 +446,7 @@ def profit_trend(
 # =========================================================
 # END OF DAY BUSINESS SUMMARY
 # =========================================================
+
 @router.get("/end-of-day")
 def end_of_day_summary(
     db: Session = Depends(get_db),
@@ -471,7 +472,6 @@ def end_of_day_summary(
 
     # Premium features only
     if subscription:
-
         # Top selling product
         top_product = (
             db.query(
@@ -498,7 +498,7 @@ def end_of_day_summary(
         if top_product:
             top_product_name = top_product.name
 
-        # Low stock alerts - FIXED: Added product_id
+        # Low stock alerts
         low_stock = (
             db.query(
                 Product.id,           
@@ -525,14 +525,28 @@ def end_of_day_summary(
             }
             for item in low_stock
         ]
-
-    return {
-        "date": today,
-        "total_sales": summary["total_sales"],
-        "total_cost": summary["total_cost"],
-        "total_profit": summary["total_profit"],
-        "total_orders": summary["total_orders"],
-        "total_items_sold": summary["total_items_sold"],
-        "top_selling_product": top_product_name,
-        "low_stock_products": low_stock_products,
-    }
+        
+        # For paid users - return full profit data
+        return {
+            "date": today,
+            "total_sales": summary["total_sales"],
+            "total_cost": summary["total_cost"],
+            "total_profit": summary["total_profit"],
+            "total_orders": summary["total_orders"],
+            "total_items_sold": summary["total_items_sold"],
+            "top_selling_product": top_product_name,
+            "low_stock_products": low_stock_products,
+        }
+    
+    else:
+        # For FREE users - hide profit and cost
+        return {
+            "date": today,
+            "total_sales": summary["total_sales"],
+            "total_cost": None,  # Hide cost
+            "total_profit": None,  # Hide profit
+            "total_orders": summary["total_orders"],
+            "total_items_sold": summary["total_items_sold"],
+            "top_selling_product": None,  # Hide top product for free users
+            "low_stock_products": low_stock_products,  # Low stock still shows (premium feature)
+        }

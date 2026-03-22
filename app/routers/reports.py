@@ -185,20 +185,33 @@ def _calculate_product_profit(
 # =========================================================
 # DAILY REPORT (FREE)
 # =========================================================
+# =========================================================
+# DAILY REPORT (PROFIT LOCKED FOR FREE USERS)
+# =========================================================
 @router.get("/daily", response_model=SalesReportResponse)
 def daily_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     today = datetime.now(timezone.utc).date()
-
-    return _calculate_report(
+    
+    report = _calculate_report(
         db,
         current_user.business_id,
         today,
         today,
     )
-
+    
+    # Check if user has active subscription
+    subscription = get_active_subscription(db, current_user.business_id)
+    
+    if not subscription:
+        # Free user - hide cost, profit, and margin
+        report["total_cost"] = None
+        report["total_profit"] = None
+        report["profit_margin_percentage"] = None
+    
+    return report
 
 # =========================================================
 # WEEKLY REPORT (PROFIT LOCKED)
@@ -267,6 +280,9 @@ def monthly_report(
 # =========================================================
 # DAILY PRODUCT PROFIT (FREE)
 # =========================================================
+# =========================================================
+# DAILY PRODUCT PROFIT (LOCKED FOR FREE USERS)
+# =========================================================
 @router.get("/daily/products", response_model=ProductProfitReportResponse)
 def daily_product_profit(
     db: Session = Depends(get_db),
@@ -275,6 +291,19 @@ def daily_product_profit(
     limit: int = Query(20, ge=1),
     offset: int = Query(0, ge=0),
 ):
+    # Check if user has active subscription
+    subscription = get_active_subscription(db, current_user.business_id)
+    
+    if not subscription:
+        # Free user - return empty product profit data
+        return {
+            "start_date": datetime.now(timezone.utc).date(),
+            "end_date": datetime.now(timezone.utc).date(),
+            "total_products": 0,
+            "results": [],
+            "locked": True  # Add flag to indicate locked
+        }
+    
     today = datetime.now(timezone.utc).date()
 
     return _calculate_product_profit(

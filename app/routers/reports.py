@@ -494,11 +494,56 @@ def end_of_day_summary(
     top_product_name = None
     low_stock_products = []
 
-    # Premium features only
-    if subscription:
+    # Get low stock products for all users (as teaser)
+    low_stock = (
+        db.query(
+            Product.id,           
+            Product.name,
+            Product.base_unit,
+            Inventory.quantity_available,
+        )
+        .join(Inventory, Inventory.product_id == Product.id)
+        .filter(
+            Product.business_id == current_user.business_id,
+            Inventory.quantity_available <= Inventory.low_stock_threshold
+        )
+        .order_by(Inventory.quantity_available.asc())
+        .limit(3)
+        .all()
+    )
 
-        # Top selling product
-        top_product = (
+    low_stock_products = [
+        {
+            "product_id": item.id,        
+            "product_name": item.name,
+            "quantity_left": item.quantity_available,
+            "base_unit": item.base_unit,
+        }
+        for item in low_stock
+    ]
+
+    # Get top selling product (name only for free users)
+    top_product = (
+        db.query(
+            Product.name,
+        )
+        .join(SaleItem, SaleItem.product_id == Product.id)
+        .join(Sale, SaleItem.sale_id == Sale.id)
+        .filter(
+            Sale.business_id == current_user.business_id,
+            func.date(Sale.created_at) == today
+        )
+        .group_by(Product.name)
+        .order_by(func.sum(SaleItem.line_total).desc())
+        .first()
+    )
+    
+    top_product_name = top_product.name if top_product else None
+
+    # Premium features only for paid users
+    if subscription:
+        # For paid users - get profit data too
+        profit_top_product = (
             db.query(
                 Product.name,
                 func.sum(
@@ -520,38 +565,9 @@ def end_of_day_summary(
             .first()
         )
 
-        if top_product:
-            top_product_name = top_product.name
-
-        # Low stock alerts
-        low_stock = (
-            db.query(
-                Product.id,           
-                Product.name,
-                Product.base_unit,
-                Inventory.quantity_available,
-            )
-            .join(Inventory, Inventory.product_id == Product.id)
-            .filter(
-                Product.business_id == current_user.business_id,
-                Inventory.quantity_available <= Inventory.low_stock_threshold
-            )
-            .order_by(Inventory.quantity_available.asc())
-            .limit(3)
-            .all()
-        )
-
-        low_stock_products = [
-            {
-                "product_id": item.id,        
-                "product_name": item.name,
-                "quantity_left": item.quantity_available,
-                "base_unit": item.base_unit,
-            }
-            for item in low_stock
-        ]
+        if profit_top_product:
+            top_product_name = profit_top_product.name
         
-        # For paid users - return full profit data
         return {
             "date": today,
             "total_sales": summary["total_sales"],
@@ -564,14 +580,14 @@ def end_of_day_summary(
         }
     
     else:
-        # For FREE users - hide profit and cost (return 0 instead of None)
+        # For FREE users - hide profit, but show top product name
         return {
             "date": today,
             "total_sales": summary["total_sales"],
-            "total_cost": Decimal("0.00"),  # Changed from None
-            "total_profit": Decimal("0.00"),  # Changed from None
+            "total_cost": Decimal("0.00"),
+            "total_profit": Decimal("0.00"),
             "total_orders": summary["total_orders"],
             "total_items_sold": summary["total_items_sold"],
-            "top_selling_product": None,  # Hide top product for free users
+            "top_selling_product": top_product_name,  # ← Now shows product name!
             "low_stock_products": low_stock_products,
         }

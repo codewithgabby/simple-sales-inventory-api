@@ -215,3 +215,90 @@ def delete_product(
     db.commit()
 
     return None
+
+# =========================================================
+# BATCH FETCH UNITS FOR MULTIPLE PRODUCTS
+# =========================================================
+@router.get("/units/batch", response_model=dict)
+def batch_get_product_units(
+    product_ids: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Fetch units for multiple products in a single request.
+    Accepts comma-separated product IDs: /products/units/batch?product_ids=1,2,3
+    Returns a dictionary mapping product_id to list of units (including base unit)
+    """
+    # Import here to avoid circular imports
+    from app.models.product_units import ProductUnitConversion
+    
+    # Parse product IDs from query parameter
+    ids = []
+    for id_str in product_ids.split(','):
+        try:
+            ids.append(int(id_str.strip()))
+        except ValueError:
+            continue
+    
+    if not ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid product IDs provided"
+        )
+    
+    # Verify all products belong to this business
+    products = (
+        db.query(Product)
+        .filter(
+            Product.id.in_(ids),
+            Product.business_id == current_user.business_id
+        )
+        .all()
+    )
+    
+    # Create mapping of product_id to product
+    product_map = {p.id: p for p in products}
+    
+    # Fetch all unit conversions for these products in one query
+    units = (
+        db.query(ProductUnitConversion)
+        .filter(ProductUnitConversion.product_id.in_(ids))
+        .all()
+    )
+    
+    # Group units by product_id
+    units_by_product = {}
+    for unit in units:
+        if unit.product_id not in units_by_product:
+            units_by_product[unit.product_id] = []
+        units_by_product[unit.product_id].append({
+            "id": unit.id,
+            "unit_name": unit.unit_name,
+            "conversion_rate": unit.conversion_rate
+        })
+    
+    # Build response with base unit included for each product
+    result = {}
+    for product_id in ids:
+        product = product_map.get(product_id)
+        if not product:
+            # If product doesn't exist or belongs to another business, return empty units
+            result[str(product_id)] = []
+            continue
+        
+        # Get custom units for this product
+        custom_units = units_by_product.get(product_id, [])
+        
+        # Build response with base unit first
+        units_list = [
+            {
+                "id": 0,
+                "unit_name": product.base_unit,
+                "conversion_rate": 1
+            }
+        ] + custom_units
+        
+        result[str(product_id)] = units_list
+    
+    return result    

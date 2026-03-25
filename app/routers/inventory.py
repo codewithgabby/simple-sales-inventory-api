@@ -139,14 +139,16 @@ def list_inventory(
         .all()
     )
 
-    return [
-        {
+    # Safe conversion with fallback for missing product names
+    result = []
+    for item in inventory_items:
+        result.append({
             "id": item.id,
             "product_id": item.product_id,
-            "product_name": item.product.name,
+            "product_name": item.product.name if item.product else "Unknown Product",
             "quantity_available": item.quantity_available,
             "low_stock_threshold": item.low_stock_threshold,
             "expiry_date": item.expiry_date,
-        }
-        for item in inventory_items
-    ]
+        })
+    
+    return result

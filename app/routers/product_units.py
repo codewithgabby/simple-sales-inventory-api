@@ -57,6 +57,13 @@ def create_unit_conversion(
             detail="Conversion rate must be greater than zero",
         )
 
+    # NEW: Prevent decimal conversion rates
+    if unit_data.conversion_rate % 1 != 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Conversion rate must be a whole number (no decimals). For example, if 1 {unit_name} = 0.5 {product.base_unit}, use 2 {unit_name} = 1 {product.base_unit} instead (conversion rate = 2)."
+        )
+
     existing_unit = (
         db.query(ProductUnitConversion)
         .filter(

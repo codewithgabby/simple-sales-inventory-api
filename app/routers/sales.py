@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from decimal import Decimal
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime
+import pytz
 
 from app.database import get_db
 from app.core.auth import get_current_user
@@ -200,7 +201,8 @@ def list_sales(
     )
 
     if not subscription:
-        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
+        tz = pytz.timezone('Africa/Lagos')
+        seven_days_ago = datetime.now(tz) - timedelta(days=6)
         query = query.filter(Sale.created_at >= seven_days_ago)
 
     sales = (
@@ -232,7 +234,8 @@ def list_all_sales_for_dashboard(
     )
 
     if not subscription:
-        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
+        tz = pytz.timezone('Africa/Lagos')
+        seven_days_ago = datetime.now(tz) - timedelta(days=6)
         query = query.filter(Sale.created_at >= seven_days_ago)
 
     return query.all()
@@ -266,8 +269,9 @@ def get_sale(
     subscription = get_active_subscription(db, current_user.business_id)
 
     if not subscription:
-        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
-
+        tz = pytz.timezone('Africa/Lagos')
+        seven_days_ago = datetime.now(tz) - timedelta(days=6)
+        
         if sale.created_at < seven_days_ago:
             raise HTTPException(
                 status_code=402,

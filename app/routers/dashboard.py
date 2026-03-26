@@ -8,7 +8,8 @@ from app.models.inventory import Inventory
 from app.models.sales import Sale
 from app.core.subscription import get_active_subscription
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+import pytz
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -36,7 +37,8 @@ def dashboard_summary(
     )
 
     if not subscription:
-        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=6)
+        tz = pytz.timezone('Africa/Lagos')
+        seven_days_ago = datetime.now(tz) - timedelta(days=6)
         query = query.filter(Sale.created_at >= seven_days_ago)
 
     sales = query.all()

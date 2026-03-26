@@ -22,6 +22,7 @@ from datetime import date, timedelta, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 from calendar import monthrange
+import pytz
 
 from app.database import get_db
 from app.core.auth import get_current_user
@@ -38,6 +39,10 @@ from app.schemas.report import (
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
+# Add this function after imports, before any @router
+def get_nigerian_date():
+    tz = pytz.timezone('Africa/Lagos')
+    return datetime.now(tz).date()
 
 # =========================================================
 # CORE SALES SUMMARY CALCULATION
@@ -194,7 +199,7 @@ def daily_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
     
     report = _calculate_report(
         db,
@@ -222,7 +227,7 @@ def weekly_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
     start_date = today - timedelta(days=6)
 
     report = _calculate_report(
@@ -254,7 +259,7 @@ def monthly_report(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
     start_date = today - timedelta(days=29)
 
     report = _calculate_report(
@@ -293,7 +298,7 @@ def daily_product_profit(
     
     if not subscription:
         # Free user - return empty product list
-        today = datetime.now(timezone.utc).date()
+        today = get_nigerian_date()
         return {
             "start_date": today,
             "end_date": today,
@@ -301,7 +306,7 @@ def daily_product_profit(
             "results": [],
         }
     
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
 
     return _calculate_product_profit(
         db=db,
@@ -337,7 +342,7 @@ def weekly_product_profit(
             detail="Upgrade to unlock weekly product profit insights",
         )
 
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
     start_date = today - timedelta(days=6)
 
     return _calculate_product_profit(
@@ -374,7 +379,7 @@ def monthly_product_profit(
             detail="Upgrade to unlock monthly product profit insights",
         )
 
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
     start_date = today - timedelta(days=29)
 
     return _calculate_product_profit(
@@ -410,7 +415,7 @@ def profit_trend(
             detail="Upgrade to unlock Profit Trend",
         )
 
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
 
     trend_data = []
 
@@ -476,7 +481,7 @@ def end_of_day_summary(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    today = datetime.now(timezone.utc).date()
+    today = get_nigerian_date()
 
     summary = _calculate_report(
         db,

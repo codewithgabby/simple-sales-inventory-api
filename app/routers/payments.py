@@ -63,7 +63,7 @@ def initialize_payment(
         )
 
     #  Server-controlled pricing (in kobo)
-    amount_kobo = 15000 if period_type == "weekly" else 50000
+    amount_kobo = 50000 if period_type == "weekly" else 150000
 
     payload = {
         "email": current_user.email,

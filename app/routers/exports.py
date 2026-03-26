@@ -100,26 +100,39 @@ def fetch_units_for_products(db: Session, product_ids: list):
 # =========================================================
 # ACCESS CHECK HELPER
 # =========================================================
+
 def _require_export_access(db: Session, business_id: int, period_type: str):
     today = datetime.now(timezone.utc).date()
 
-    access = (
-        db.query(ExportAccess)
-        .filter(
-            ExportAccess.business_id == business_id,
-            ExportAccess.period_type == period_type,
-            ExportAccess.start_date <= today,
-            ExportAccess.end_date >= today,
+    # If requesting weekly export, check for weekly OR monthly subscription
+    if period_type == "weekly":
+        access = (
+            db.query(ExportAccess)
+            .filter(
+                ExportAccess.business_id == business_id,
+                ExportAccess.start_date <= today,
+                ExportAccess.end_date >= today,
+                ExportAccess.period_type.in_(["weekly", "monthly"])  # ← KEY CHANGE
+            )
+            .first()
         )
-        .first()
-    )
+    else:  # monthly
+        access = (
+            db.query(ExportAccess)
+            .filter(
+                ExportAccess.business_id == business_id,
+                ExportAccess.period_type == "monthly",
+                ExportAccess.start_date <= today,
+                ExportAccess.end_date >= today,
+            )
+            .first()
+        )
 
     if not access:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Please pay to download this export",
         )
-
 
 # =========================================================
 # EXPORT ROUTES

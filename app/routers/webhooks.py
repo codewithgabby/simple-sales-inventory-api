@@ -85,7 +85,7 @@ async def paystack_webhook(
         logger.error("Missing reference in webhook")
         raise HTTPException(status_code=400, detail="Missing transaction reference")
 
-    expected_amount = 15000 if period_type == "weekly" else 50000
+    expected_amount = 50000 if period_type == "weekly" else 150000
 
     if amount_kobo != expected_amount:
         logger.error(f"Incorrect payment amount: {amount_kobo}")

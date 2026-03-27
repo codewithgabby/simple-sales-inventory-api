@@ -31,6 +31,7 @@ from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
 from app.models.inventory import Inventory
+from app.models.business import Business
 from app.schemas.report import (
     SalesReportResponse,
     ProductProfitReportResponse,
@@ -573,6 +574,10 @@ def end_of_day_summary(
         if profit_top_product:
             top_product_name = profit_top_product.name
         
+               # Get streak from business
+        business = db.query(Business).filter(Business.id == current_user.business_id).first()
+        streak = business.current_streak if business else 0
+        
         return {
             "date": today,
             "total_sales": summary["total_sales"],
@@ -582,10 +587,15 @@ def end_of_day_summary(
             "total_items_sold": summary["total_items_sold"],
             "top_selling_product": top_product_name,
             "low_stock_products": low_stock_products,
+            "streak": streak,
         }
     
     else:
         # For FREE users - hide profit, but show top product name
+               # Get streak from business
+        business = db.query(Business).filter(Business.id == current_user.business_id).first()
+        streak = business.current_streak if business else 0
+        
         return {
             "date": today,
             "total_sales": summary["total_sales"],
@@ -593,6 +603,7 @@ def end_of_day_summary(
             "total_profit": Decimal("0.00"),
             "total_orders": summary["total_orders"],
             "total_items_sold": summary["total_items_sold"],
-            "top_selling_product": top_product_name,  # ← Now shows product name!
+            "top_selling_product": top_product_name,
             "low_stock_products": low_stock_products,
+            "streak": streak,
         }

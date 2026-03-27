@@ -26,6 +26,7 @@ from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
 from app.models.inventory import Inventory
+from app.models.business import Business
 from app.models.product_units import ProductUnitConversion
 from app.schemas.sale import SaleCreate, SaleResponse
 from app.core.rate_limiter import limiter
@@ -168,8 +169,32 @@ def create_sale(
 
         sale.total_amount = total_amount
         db.add_all(sale_items_objects)
+        
+
+        # ====================================
+        # UPDATE STREAK FOR BUSINESS
+        # ====================================
+        tz = pytz.timezone('Africa/Lagos')
+        sale_nigerian_date = datetime.now(tz).date()
+        
+        business = db.query(Business).filter(Business.id == current_user.business_id).first()
+        
+        if business:
+            last_date = business.last_sale_date
+            current_streak = business.current_streak or 0
+            
+            if last_date == sale_nigerian_date:
+                new_streak = current_streak
+            elif last_date == sale_nigerian_date - timedelta(days=1):
+                new_streak = current_streak + 1
+            else:
+                new_streak = 1
+            
+            business.last_sale_date = sale_nigerian_date
+            business.current_streak = new_streak
+            
         db.commit()
-        db.refresh(sale)
+        db.refresh(sale)    
 
         return sale
 

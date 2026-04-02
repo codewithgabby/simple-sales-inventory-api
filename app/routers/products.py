@@ -81,7 +81,7 @@ def create_product(
                 detail="Free plan allows only 10 products. Upgrade to add more."
            )
 
-    elif subscription.period_type.value == "weekly":
+    elif subscription.period_type == "weekly":
         if product_count >= 30:
             raise HTTPException(
                 status_code=403,

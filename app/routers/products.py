@@ -3,8 +3,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core import subscription
 from app.database import get_db
 from app.core.auth import get_current_user
+from app.core.subscription import get_active_subscription
 from app.models.products import Product
 from app.models.sale_items import SaleItem
 from app.schemas.product import (
@@ -61,6 +63,30 @@ def create_product(
             status_code=400,
             detail="Base unit cannot be empty",
         )
+    
+    # ================================
+    # PRODUCT LIMIT LOGIC 
+    # ================================
+
+    subscription = get_active_subscription(db, current_user.business_id)
+
+    product_count = db.query(Product).filter(
+        Product.business_id == current_user.business_id
+    ).count()
+
+    if not subscription:
+        if product_count >= 10:
+            raise HTTPException(
+                status_code=403,
+                detail="Free plan allows only 10 products. Upgrade to add more."
+           )
+
+    elif subscription.period_type.value == "weekly":
+        if product_count >= 30:
+            raise HTTPException(
+                status_code=403,
+                detail="Weekly plan allows only 30 products. Upgrade to monthly."
+            )
 
     product = Product(
         name=product_data.name,

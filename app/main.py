@@ -28,8 +28,7 @@ from app.routers import (
     admin, 
     subscription,
     notifications,
-    dashboard,
-    internal_admin
+    dashboard
 )      
 
 
@@ -125,7 +124,7 @@ app.include_router(premium_intelligence.router)
 app.include_router(subscription.router)
 app.include_router(notifications.router)
 app.include_router(dashboard.router)
-app.include_router(internal_admin.router)
+
 
 # ROOT
 

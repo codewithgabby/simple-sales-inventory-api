@@ -175,7 +175,15 @@ def create_sale(
         # UPDATE STREAK FOR BUSINESS
         # ====================================
         tz = pytz.timezone('Africa/Lagos')
-        sale_nigerian_date = datetime.now(tz).date()
+
+        # Use the actual sale timestamp (created_at)
+        sale_time_utc = sale.created_at
+
+        # Convert to Nigerian time
+        sale_time_local = sale_time_utc.astimezone(tz)
+
+        # Extract date
+        sale_nigerian_date = sale_time_local.date()
         
         business = db.query(Business).filter(Business.id == current_user.business_id).first()
         

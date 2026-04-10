@@ -54,8 +54,18 @@ def _calculate_report(
     start_date: date,
     end_date: date,
 ):
-    start_dt = datetime.combine(start_date, datetime.min.time())
-    end_dt = datetime.combine(end_date, datetime.max.time())
+    
+    nigeria_tz = pytz.timezone("Africa/Lagos")
+
+    # Convert start_date → Nigeria midnight
+    start_local = nigeria_tz.localize(datetime.combine(start_date, datetime.min.time()))
+
+    # Convert end_date → Nigeria end of day
+    end_local = nigeria_tz.localize(datetime.combine(end_date, datetime.max.time()))
+
+    # Convert both to UTC (because DB stores UTC)
+    start_dt = start_local.astimezone(pytz.utc)
+    end_dt = end_local.astimezone(pytz.utc)
 
     base_filter = [
         Sale.business_id == business_id,
@@ -125,8 +135,13 @@ def _calculate_product_profit(
     limit: int,
     offset: int,
 ):
-    start_dt = datetime.combine(start_date, datetime.min.time())
-    end_dt = datetime.combine(end_date, datetime.max.time())
+    nigeria_tz = pytz.timezone("Africa/Lagos")
+
+    start_local = nigeria_tz.localize(datetime.combine(start_date, datetime.min.time()))
+    end_local = nigeria_tz.localize(datetime.combine(end_date, datetime.max.time()))
+
+    start_dt = start_local.astimezone(pytz.utc)
+    end_dt = end_local.astimezone(pytz.utc)
 
     base_query = (
         db.query(
@@ -529,6 +544,11 @@ def end_of_day_summary(
     ]
 
     # Get top selling product (name only for free users)
+    nigeria_tz = pytz.timezone("Africa/Lagos")
+    start_of_today = datetime.now(nigeria_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_today_utc = start_of_today.astimezone(pytz.utc)
+    end_of_today_utc = start_of_today_utc + timedelta(days=1)
+
     top_product = (
         db.query(
             Product.name,
@@ -537,7 +557,8 @@ def end_of_day_summary(
         .join(Sale, SaleItem.sale_id == Sale.id)
         .filter(
             Sale.business_id == current_user.business_id,
-            func.date(Sale.created_at) == today
+            Sale.created_at >= start_of_today_utc,
+            Sale.created_at < end_of_today_utc
         )
         .group_by(Product.name)
         .order_by(func.sum(SaleItem.line_total).desc())
@@ -559,9 +580,10 @@ def end_of_day_summary(
             .join(SaleItem, SaleItem.product_id == Product.id)
             .join(Sale, SaleItem.sale_id == Sale.id)
             .filter(
-                Sale.business_id == current_user.business_id,
-                func.date(Sale.created_at) == today
-            )
+    Sale.business_id == current_user.business_id,
+    Sale.created_at >= start_of_today_utc,
+    Sale.created_at < end_of_today_utc
+)
             .group_by(Product.name)
             .order_by(
                 func.sum(

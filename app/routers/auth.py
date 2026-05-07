@@ -74,12 +74,16 @@ def signup(request: Request, user_data: UserCreate, db: Session = Depends(get_db
         business = Business(name=user_data.business_name)
         db.add(business)
         db.flush()
+        
+        now = datetime.now(timezone.utc)
 
         user = User(
             email=user_data.email,
             password_hash=hash_password(user_data.password),
             business_id=business.id,
             phone_number=formatted_phone,
+            trial_start_date=now,
+            trial_end_date=now + timedelta(days=7),
         )
 
         db.add(user)

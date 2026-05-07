@@ -14,6 +14,22 @@ def subscription_status(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+
+    now = datetime.now(timezone.utc)
+    
+    # Check if user is in trial period FIRST
+    if current_user.trial_end_date and current_user.trial_end_date > now:
+        days_left = (current_user.trial_end_date - now).days + 1
+        return {
+            "active": True,
+            "period_type": "trial",
+            "start_date": current_user.trial_start_date,
+            "end_date": current_user.trial_end_date,
+            "trial": True,
+            "days_left": days_left,
+        }
+
+    # Normal subscription check
     subscription = get_active_subscription(
         db,
         current_user.business_id,
@@ -25,6 +41,8 @@ def subscription_status(
             "period_type": None,
             "start_date": None,
             "end_date": None,
+            "trial": False,
+            "days_left": 0,
         }
 
     return {
@@ -32,4 +50,6 @@ def subscription_status(
         "period_type": subscription.period_type,
         "start_date": subscription.start_date,
         "end_date": subscription.end_date,
+        "trial": False,
+        "days_left": 0,
     }

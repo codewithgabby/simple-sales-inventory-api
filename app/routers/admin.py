@@ -68,6 +68,23 @@ def platform_overview(
         ExportAccess.end_date >= today,
     ).scalar()
 
+    # Trial stats
+    active_trials = db.query(func.count(User.id)).filter(
+        User.trial_end_date.isnot(None),
+        User.trial_end_date > today,
+    ).scalar()
+
+    trial_conversion = db.query(func.count(User.id)).filter(
+        User.trial_end_date.isnot(None),
+        User.trial_end_date < today,
+        User.business_id.in_(
+            db.query(ExportAccess.business_id).filter(
+                ExportAccess.start_date <= today,
+                ExportAccess.end_date >= today,
+            )
+        ),
+    ).scalar()
+
     premium_penetration = (
         (active_premium / total_businesses) * 100
         if total_businesses else 0
@@ -84,6 +101,9 @@ def platform_overview(
         "active_weekly_businesses": active_weekly,
         "active_monthly_businesses": active_monthly,
         "premium_penetration_percent": round(premium_penetration, 2),
+        # Trial stats
+        "active_trials": active_trials,
+        "trial_to_paid_conversions": trial_conversion,
     }
 
 
@@ -150,6 +170,13 @@ def list_businesses(
             ExportAccess.end_date >= date.today(),
         ).first()
 
+        # Trial info
+        trial_user = db.query(User).filter(
+            User.business_id == biz.id,
+            User.trial_end_date.isnot(None),
+            User.trial_end_date > date.today(),
+        ).first()
+
         results.append({
             "business_id": biz.id,
             "business_name": biz.name,
@@ -162,6 +189,9 @@ def list_businesses(
             "total_revenue": float(total_revenue),
             "subscription_type": active_subscription.period_type if active_subscription else None,
             "subscription_expires_at": active_subscription.end_date if active_subscription else None,
+            # Trial info
+            "on_trial": trial_user is not None,
+            "trial_end_date": trial_user.trial_end_date if trial_user else None,
         })
 
     return {
@@ -245,9 +275,18 @@ def business_financial_overview(
         ExportAccess.end_date >= today,
     ).order_by(ExportAccess.end_date.desc()).first()
 
+    # Check trial status
+    trial_user = db.query(User).filter(
+        User.business_id == business_id,
+        User.trial_end_date.isnot(None),
+    ).first()
+
     return {
         "revenue_last_30_days": float(revenue),
         "profit_last_30_days": float(profit),
         "active_subscription": subscription.period_type if subscription else None,
         "subscription_expires": subscription.end_date if subscription else None,
+        # Trial info
+        "on_trial": trial_user.trial_end_date > today if (trial_user and trial_user.trial_end_date) else False,
+        "trial_end_date": trial_user.trial_end_date if trial_user else None,
     }

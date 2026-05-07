@@ -24,14 +24,18 @@ from typing import Optional
 from calendar import monthrange
 import pytz
 
+from app.core import current_user
+from app.core import subscription
+from app.core.subscription import is_premium_or_trial
 from app.database import get_db
 from app.core.auth import get_current_user
-from app.core.subscription import require_subscription, get_active_subscription
+from app.core.subscription import require_subscription, get_active_subscription, is_premium_or_trial
 from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
 from app.models.inventory import Inventory
 from app.models.business import Business
+from app.schemas import report
 from app.schemas.report import (
     SalesReportResponse,
     ProductProfitReportResponse,
@@ -224,14 +228,13 @@ def daily_report(
         today,
     )
     
-    # Check if user has active subscription
     subscription = get_active_subscription(db, current_user.business_id)
-    
-    if not subscription:
-        # Free user - hide cost, profit, and margin (return "0.00" instead of None)
-        report["total_cost"] = Decimal("0.00")
-        report["total_profit"] = Decimal("0.00")
-        report["profit_margin_percentage"] = Decimal("0.00")
+
+# Show profit for trial users too
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
+       report["total_cost"] = Decimal("0.00")
+       report["total_profit"] = Decimal("0.00")
+       report["profit_margin_percentage"] = Decimal("0.00")
     
     return report
 
@@ -253,16 +256,13 @@ def weekly_report(
         today,
     )
 
-    subscription = require_subscription(
-        db,
-        current_user.business_id,
-        "weekly",
-    )
+    subscription = require_subscription(db, current_user.business_id, "weekly")
 
-    if not subscription:
-        report["total_cost"] = Decimal("0.00")
-        report["total_profit"] = Decimal("0.00")
-        report["profit_margin_percentage"] = Decimal("0.00")
+# Show profit for trial users too
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
+       report["total_cost"] = Decimal("0.00")
+       report["total_profit"] = Decimal("0.00")
+       report["profit_margin_percentage"] = Decimal("0.00")
 
     return report
 
@@ -285,13 +285,10 @@ def monthly_report(
         today,
     )
 
-    subscription = require_subscription(
-        db,
-        current_user.business_id,
-        "monthly",
-    )
+    subscription = require_subscription(db, current_user.business_id, "monthly")
 
-    if not subscription:
+# 🚀 Show profit for trial users too
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
         report["total_cost"] = Decimal("0.00")
         report["total_profit"] = Decimal("0.00")
         report["profit_margin_percentage"] = Decimal("0.00")
@@ -311,16 +308,15 @@ def daily_product_profit(
 ):
     # Check if user has active subscription
     subscription = get_active_subscription(db, current_user.business_id)
-    
-    if not subscription:
-        # Free user - return empty product list
-        today = get_nigerian_date()
+
+# 🚀 Show product profit for trial users too
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
         return {
             "start_date": today,
             "end_date": today,
             "total_products": 0,
             "results": [],
-        }
+    }
     
     today = get_nigerian_date()
 

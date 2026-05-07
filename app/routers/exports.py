@@ -8,6 +8,7 @@ from io import BytesIO
 from openpyxl import Workbook
 from fastapi.responses import StreamingResponse
 
+from app.core import subscription
 from app.database import get_db
 from app.core.auth import get_current_user
 from app.core.subscription import get_active_subscription
@@ -17,6 +18,7 @@ from app.models.products import Product
 from app.models.export_access import ExportAccess
 from app.models.product_units import ProductUnitConversion
 from app.core.rate_limiter import limiter
+from app.core.subscription import is_premium_or_trial
 
 router = APIRouter(prefix="/exports", tags=["Exports"])
 
@@ -101,8 +103,12 @@ def fetch_units_for_products(db: Session, product_ids: list):
 # ACCESS CHECK HELPER
 # =========================================================
 
-def _require_export_access(db: Session, business_id: int, period_type: str):
+def _require_export_access(db: Session, business_id: int, period_type: str, user=None):
     today = datetime.now(timezone.utc).date()
+    
+    # 🚀 Allow trial users full access
+    if user and user.trial_end_date and user.trial_end_date > today:
+        return  # Trial active — allow export
 
     # If requesting weekly export, check for weekly OR monthly subscription
     if period_type == "weekly":
@@ -112,7 +118,7 @@ def _require_export_access(db: Session, business_id: int, period_type: str):
                 ExportAccess.business_id == business_id,
                 ExportAccess.start_date <= today,
                 ExportAccess.end_date >= today,
-                ExportAccess.period_type.in_(["weekly", "monthly"])  # ← KEY CHANGE
+                ExportAccess.period_type.in_(["weekly", "monthly"])
             )
             .first()
         )
@@ -133,7 +139,6 @@ def _require_export_access(db: Session, business_id: int, period_type: str):
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Please pay to download this export",
         )
-
 # =========================================================
 # EXPORT ROUTES
 # =========================================================
@@ -148,7 +153,7 @@ def export_daily_sales(request: Request, db: Session = Depends(get_db), current_
 @router.get("/weekly")
 @limiter.limit("5/minute")
 def export_weekly_sales(request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    _require_export_access(db, current_user.business_id, "weekly")
+    _require_export_access(db, current_user.business_id, "weekly", current_user)
 
     today = datetime.now(timezone.utc).date()
     start_date = today - timedelta(days=6)
@@ -158,7 +163,7 @@ def export_weekly_sales(request: Request, db: Session = Depends(get_db), current
 @router.get("/monthly")
 @limiter.limit("5/minute")
 def export_monthly_sales(request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    _require_export_access(db, current_user.business_id, "monthly")
+    _require_export_access(db, current_user.business_id, "monthly", current_user)
 
     today = datetime.now(timezone.utc).date()
     start_date = today - timedelta(days=29)
@@ -391,9 +396,10 @@ def _build_excel(
             ((total_profit - previous_profit) / previous_profit) * 100
         ).quantize(Decimal("0.01"))
 
-    summary.append(["Total Revenue (₦)", float(total_revenue)])
+        
 
-    if subscription:
+    # 🚀 Trial users AND paid users get full data
+    if subscription or is_premium_or_trial(db, business_id):
         summary.append(["Total Cost (₦)", float(total_cost)])
         summary.append(["Total Profit (₦)", float(total_profit)])
         summary.append(["Profit Margin (%)", float(margin)])
@@ -405,7 +411,7 @@ def _build_excel(
         summary.append(["Profit Margin (%)", " Upgrade to unlock"])
         summary.append(["Top Performing Product", " Upgrade to unlock"])
         summary.append(["Profit Growth (%)", " Upgrade to unlock"])
-    
+
     # =======================
     # RETURN FILE
     # =======================

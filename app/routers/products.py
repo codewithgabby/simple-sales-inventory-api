@@ -3,10 +3,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core import subscription
+from app.core import current_user, subscription
 from app.database import get_db
 from app.core.auth import get_current_user
-from app.core.subscription import get_active_subscription
+from app.core.subscription import get_active_subscription, is_premium_or_trial
 from app.models.products import Product
 from app.models.sale_items import SaleItem
 from app.schemas.product import (
@@ -74,14 +74,18 @@ def create_product(
         Product.business_id == current_user.business_id
     ).count()
 
-    if not subscription:
+# 🚀 Check if trial user
+    is_trial = is_premium_or_trial(db, current_user.business_id, current_user)
+
+    if not subscription and not is_trial:
         if product_count >= 10:
             raise HTTPException(
                 status_code=403,
                 detail="Free plan allows only 10 products. Upgrade to add more."
-           )
+       )
 
-    elif subscription.period_type == "weekly":
+    elif is_trial or (subscription and subscription.period_type == "weekly"):
+    # Trial users AND weekly users get 30 products
         if product_count >= 30:
             raise HTTPException(
                 status_code=403,

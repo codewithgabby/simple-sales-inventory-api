@@ -47,12 +47,16 @@ def initialize_payment(
     today = datetime.now(timezone.utc).date()
 
     # 🚀 Block payments during active trial
-    if current_user.trial_end_date and current_user.trial_end_date > today:
-        days_left = (current_user.trial_end_date - today).days + 1
-        raise HTTPException(
-            status_code=400,
-            detail=f"You're still enjoying your free trial ({days_left} days left). Subscribe after your trial ends.",
-        )
+    if current_user.trial_end_date:
+        trial_end = current_user.trial_end_date.date() if hasattr(current_user.trial_end_date, 'date') else current_user.trial_end_date
+        if trial_end > today:
+            days_left = (trial_end - today).days + 1
+            raise HTTPException(
+                status_code=400,
+                detail=f"You're still enjoying your free trial ({days_left} days left). Subscribe after your trial ends.",
+            )
+
+
 
     #  Prevent duplicate active subscription for same period
     existing_access = (

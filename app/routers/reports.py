@@ -8,6 +8,9 @@
 # - Can access DAILY product profit
 # - Cannot access WEEKLY/MONTHLY product profit
 #
+# TRIAL USERS (7-day free trial):
+# - Full access to ALL reports + profit + products + trends
+#
 # PAID USERS:
 # - Weekly subscription unlocks weekly profit + weekly product profit
 # - Monthly subscription unlocks monthly profit + monthly product profit
@@ -24,9 +27,6 @@ from typing import Optional
 from calendar import monthrange
 import pytz
 
-from app.core import current_user
-from app.core import subscription
-from app.core.subscription import is_premium_or_trial
 from app.database import get_db
 from app.core.auth import get_current_user
 from app.core.subscription import require_subscription, get_active_subscription, is_premium_or_trial
@@ -35,7 +35,6 @@ from app.models.sale_items import SaleItem
 from app.models.products import Product
 from app.models.inventory import Inventory
 from app.models.business import Business
-from app.schemas import report
 from app.schemas.report import (
     SalesReportResponse,
     ProductProfitReportResponse,
@@ -44,10 +43,11 @@ from app.schemas.report import (
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
-# Add this function after imports, before any @router
+
 def get_nigerian_date():
     tz = pytz.timezone('Africa/Lagos')
     return datetime.now(tz).date()
+
 
 # =========================================================
 # CORE SALES SUMMARY CALCULATION
@@ -58,16 +58,9 @@ def _calculate_report(
     start_date: date,
     end_date: date,
 ):
-    
     nigeria_tz = pytz.timezone("Africa/Lagos")
-
-    # Convert start_date → Nigeria midnight
     start_local = nigeria_tz.localize(datetime.combine(start_date, datetime.min.time()))
-
-    # Convert end_date → Nigeria end of day
     end_local = nigeria_tz.localize(datetime.combine(end_date, datetime.max.time()))
-
-    # Convert both to UTC (because DB stores UTC)
     start_dt = start_local.astimezone(pytz.utc)
     end_dt = end_local.astimezone(pytz.utc)
 
@@ -81,20 +74,17 @@ def _calculate_report(
         .filter(*base_filter)
         .scalar()
     )
-
     total_orders = (
         db.query(func.count(Sale.id))
         .filter(*base_filter)
         .scalar()
     )
-
     total_items_sold = (
         db.query(func.coalesce(func.sum(SaleItem.quantity), 0))
         .join(Sale, SaleItem.sale_id == Sale.id)
         .filter(*base_filter)
         .scalar()
     )
-
     total_cost = (
         db.query(func.coalesce(func.sum(Product.cost_price * SaleItem.quantity), 0))
         .join(SaleItem, SaleItem.product_id == Product.id)
@@ -107,7 +97,6 @@ def _calculate_report(
     total_cost = Decimal(total_cost or 0)
     total_profit = total_sales - total_cost
 
-    #  PROFIT MARGIN %
     if total_sales == 0:
         profit_margin_percentage = Decimal("0.00")
     else:
@@ -140,10 +129,8 @@ def _calculate_product_profit(
     offset: int,
 ):
     nigeria_tz = pytz.timezone("Africa/Lagos")
-
     start_local = nigeria_tz.localize(datetime.combine(start_date, datetime.min.time()))
     end_local = nigeria_tz.localize(datetime.combine(end_date, datetime.max.time()))
-
     start_dt = start_local.astimezone(pytz.utc)
     end_dt = end_local.astimezone(pytz.utc)
 
@@ -154,9 +141,7 @@ def _calculate_product_profit(
             Product.base_unit.label("base_unit"),
             func.coalesce(func.sum(SaleItem.quantity), 0).label("total_quantity_sold"),
             func.coalesce(func.sum(SaleItem.line_total), 0).label("total_revenue"),
-            func.coalesce(
-                func.sum(Product.cost_price * SaleItem.quantity), 0
-            ).label("total_cost"),
+            func.coalesce(func.sum(Product.cost_price * SaleItem.quantity), 0).label("total_cost"),
         )
         .join(SaleItem, SaleItem.product_id == Product.id)
         .join(Sale, SaleItem.sale_id == Sale.id)
@@ -181,12 +166,10 @@ def _calculate_product_profit(
     )
 
     formatted_results = []
-
     for row in results:
         total_revenue = Decimal(row.total_revenue or 0)
         total_cost = Decimal(row.total_cost or 0)
         total_profit = total_revenue - total_cost
-
         formatted_results.append(
             ProductProfitResponse(
                 product_id=row.product_id,
@@ -208,11 +191,7 @@ def _calculate_product_profit(
 
 
 # =========================================================
-# DAILY REPORT (FREE)
-# =========================================================
-
-# =========================================================
-# DAILY REPORT (PROFIT LOCKED FOR FREE USERS)
+# DAILY REPORT
 # =========================================================
 @router.get("/daily", response_model=SalesReportResponse)
 def daily_report(
@@ -220,26 +199,20 @@ def daily_report(
     current_user=Depends(get_current_user),
 ):
     today = get_nigerian_date()
-    
-    report = _calculate_report(
-        db,
-        current_user.business_id,
-        today,
-        today,
-    )
-    
+    report = _calculate_report(db, current_user.business_id, today, today)
     subscription = get_active_subscription(db, current_user.business_id)
 
-# Show profit for trial users too
+    # 🚀 Trial users see full profit
     if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
-       report["total_cost"] = Decimal("0.00")
-       report["total_profit"] = Decimal("0.00")
-       report["profit_margin_percentage"] = Decimal("0.00")
-    
+        report["total_cost"] = Decimal("0.00")
+        report["total_profit"] = Decimal("0.00")
+        report["profit_margin_percentage"] = Decimal("0.00")
+
     return report
 
+
 # =========================================================
-# WEEKLY REPORT (PROFIT LOCKED)
+# WEEKLY REPORT
 # =========================================================
 @router.get("/weekly", response_model=SalesReportResponse)
 def weekly_report(
@@ -248,27 +221,20 @@ def weekly_report(
 ):
     today = get_nigerian_date()
     start_date = today - timedelta(days=6)
-
-    report = _calculate_report(
-        db,
-        current_user.business_id,
-        start_date,
-        today,
-    )
-
+    report = _calculate_report(db, current_user.business_id, start_date, today)
     subscription = require_subscription(db, current_user.business_id, "weekly")
 
-# Show profit for trial users too
+    # 🚀 Trial users see full profit
     if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
-       report["total_cost"] = Decimal("0.00")
-       report["total_profit"] = Decimal("0.00")
-       report["profit_margin_percentage"] = Decimal("0.00")
+        report["total_cost"] = Decimal("0.00")
+        report["total_profit"] = Decimal("0.00")
+        report["profit_margin_percentage"] = Decimal("0.00")
 
     return report
 
 
 # =========================================================
-# MONTHLY REPORT (PROFIT LOCKED)
+# MONTHLY REPORT
 # =========================================================
 @router.get("/monthly", response_model=SalesReportResponse)
 def monthly_report(
@@ -277,17 +243,10 @@ def monthly_report(
 ):
     today = get_nigerian_date()
     start_date = today - timedelta(days=29)
-
-    report = _calculate_report(
-        db,
-        current_user.business_id,
-        start_date,
-        today,
-    )
-
+    report = _calculate_report(db, current_user.business_id, start_date, today)
     subscription = require_subscription(db, current_user.business_id, "monthly")
 
-# 🚀 Show profit for trial users too
+    # 🚀 Trial users see full profit
     if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
         report["total_cost"] = Decimal("0.00")
         report["total_profit"] = Decimal("0.00")
@@ -295,8 +254,9 @@ def monthly_report(
 
     return report
 
+
 # =========================================================
-# DAILY PRODUCT PROFIT (LOCKED FOR FREE USERS)
+# DAILY PRODUCT PROFIT
 # =========================================================
 @router.get("/daily/products", response_model=ProductProfitReportResponse)
 def daily_product_profit(
@@ -306,19 +266,17 @@ def daily_product_profit(
     limit: int = Query(20, ge=1),
     offset: int = Query(0, ge=0),
 ):
-    # Check if user has active subscription
+    today = get_nigerian_date()
     subscription = get_active_subscription(db, current_user.business_id)
 
-# 🚀 Show product profit for trial users too
+    # 🚀 Trial users see product profit
     if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
         return {
             "start_date": today,
             "end_date": today,
             "total_products": 0,
             "results": [],
-    }
-    
-    today = get_nigerian_date()
+        }
 
     return _calculate_product_profit(
         db=db,
@@ -332,7 +290,7 @@ def daily_product_profit(
 
 
 # =========================================================
-# WEEKLY PRODUCT PROFIT (LOCKED)
+# WEEKLY PRODUCT PROFIT
 # =========================================================
 @router.get("/weekly/products", response_model=ProductProfitReportResponse)
 def weekly_product_profit(
@@ -342,17 +300,11 @@ def weekly_product_profit(
     limit: int = Query(20, ge=1),
     offset: int = Query(0, ge=0),
 ):
-    subscription = require_subscription(
-        db,
-        current_user.business_id,
-        "weekly",
-    )
+    subscription = require_subscription(db, current_user.business_id, "weekly")
 
-    if not subscription:
-        raise HTTPException(
-            status_code=402,
-            detail="Upgrade to unlock weekly product profit insights",
-        )
+    # 🚀 Trial users get full access
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
+        raise HTTPException(status_code=402, detail="Upgrade to unlock weekly product profit insights")
 
     today = get_nigerian_date()
     start_date = today - timedelta(days=6)
@@ -369,7 +321,7 @@ def weekly_product_profit(
 
 
 # =========================================================
-# MONTHLY PRODUCT PROFIT (LOCKED)
+# MONTHLY PRODUCT PROFIT
 # =========================================================
 @router.get("/monthly/products", response_model=ProductProfitReportResponse)
 def monthly_product_profit(
@@ -379,17 +331,11 @@ def monthly_product_profit(
     limit: int = Query(20, ge=1),
     offset: int = Query(0, ge=0),
 ):
-    subscription = require_subscription(
-        db,
-        current_user.business_id,
-        "monthly",
-    )
+    subscription = require_subscription(db, current_user.business_id, "monthly")
 
-    if not subscription:
-        raise HTTPException(
-            status_code=402,
-            detail="Upgrade to unlock monthly product profit insights",
-        )
+    # 🚀 Trial users get full access
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
+        raise HTTPException(status_code=402, detail="Upgrade to unlock monthly product profit insights")
 
     today = get_nigerian_date()
     start_date = today - timedelta(days=29)
@@ -406,7 +352,7 @@ def monthly_product_profit(
 
 
 # =========================================================
-# PROFIT TREND (PAID ONLY)
+# PROFIT TREND
 # =========================================================
 @router.get("/trend")
 def profit_trend(
@@ -414,76 +360,37 @@ def profit_trend(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    subscription = require_subscription(db, current_user.business_id, period)
 
-    subscription = require_subscription(
-        db,
-        current_user.business_id,
-        period,
-    )
-
-    if not subscription:
-        raise HTTPException(
-            status_code=402,
-            detail="Upgrade to unlock Profit Trend",
-        )
+    # 🚀 Trial users get full access
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
+        raise HTTPException(status_code=402, detail="Upgrade to unlock Profit Trend")
 
     today = get_nigerian_date()
-
     trend_data = []
 
-    # For weekly, we want to show the profit for each of the last 7 days
     if period == "weekly":
         for i in range(6, -1, -1):
             day = today - timedelta(days=i)
-            result = _calculate_report(
-                db,
-                current_user.business_id,
-                day,
-                day,
-            )
-            trend_data.append({
-                "date": day,
-                "profit": result["total_profit"],
-            })
-
-    
-    
-    # For monthly, we want to show the profit for the last 3 months (including current month)
-    else:  # monthly
-
+            result = _calculate_report(db, current_user.business_id, day, day)
+            trend_data.append({"date": day, "profit": result["total_profit"]})
+    else:
         current_year = today.year
         current_month = today.month
-
         for i in range(0, 3):
-
-            # Calculate target month
             target_month = current_month - i
             target_year = current_year
-
             while target_month <= 0:
                 target_month += 12
                 target_year -= 1
-
-        # First day of that month
             month_start = date(target_year, target_month, 1)
-
-        # Last day of that month
             last_day = monthrange(target_year, target_month)[1]
             month_end = date(target_year, target_month, last_day)
-
-            result = _calculate_report(
-                db,
-                current_user.business_id,
-                month_start,
-                month_end,
-            )
-
-            trend_data.append({
-                "month_start": month_start,
-                "profit": result["total_profit"],
-          })
+            result = _calculate_report(db, current_user.business_id, month_start, month_end)
+            trend_data.append({"month_start": month_start, "profit": result["total_profit"]})
 
     return trend_data
+
 
 # =========================================================
 # END OF DAY BUSINESS SUMMARY
@@ -494,35 +401,18 @@ def end_of_day_summary(
     current_user=Depends(get_current_user),
 ):
     today = get_nigerian_date()
-
-    summary = _calculate_report(
-        db,
-        current_user.business_id,
-        today,
-        today,
-    )
-
-    # Check if user has ANY active subscription
-    subscription = get_active_subscription(
-        db,
-        current_user.business_id,
-    )
+    summary = _calculate_report(db, current_user.business_id, today, today)
+    subscription = get_active_subscription(db, current_user.business_id)
 
     top_product_name = None
     low_stock_products = []
 
-    # Get low stock products for all users (as teaser)
     low_stock = (
-        db.query(
-            Product.id,           
-            Product.name,
-            Product.base_unit,
-            Inventory.quantity_available,
-        )
+        db.query(Product.id, Product.name, Product.base_unit, Inventory.quantity_available)
         .join(Inventory, Inventory.product_id == Product.id)
         .filter(
             Product.business_id == current_user.business_id,
-            Inventory.quantity_available <= Inventory.low_stock_threshold
+            Inventory.quantity_available <= Inventory.low_stock_threshold,
         )
         .order_by(Inventory.quantity_available.asc())
         .limit(3)
@@ -531,7 +421,7 @@ def end_of_day_summary(
 
     low_stock_products = [
         {
-            "product_id": item.id,        
+            "product_id": item.id,
             "product_name": item.name,
             "quantity_left": item.quantity_available,
             "base_unit": item.base_unit,
@@ -539,63 +429,52 @@ def end_of_day_summary(
         for item in low_stock
     ]
 
-    # Get top selling product (name only for free users)
     nigeria_tz = pytz.timezone("Africa/Lagos")
     start_of_today = datetime.now(nigeria_tz).replace(hour=0, minute=0, second=0, microsecond=0)
     start_of_today_utc = start_of_today.astimezone(pytz.utc)
     end_of_today_utc = start_of_today_utc + timedelta(days=1)
 
     top_product = (
-        db.query(
-            Product.name,
-        )
+        db.query(Product.name)
         .join(SaleItem, SaleItem.product_id == Product.id)
         .join(Sale, SaleItem.sale_id == Sale.id)
         .filter(
             Sale.business_id == current_user.business_id,
             Sale.created_at >= start_of_today_utc,
-            Sale.created_at < end_of_today_utc
+            Sale.created_at < end_of_today_utc,
         )
         .group_by(Product.name)
         .order_by(func.sum(SaleItem.line_total).desc())
         .first()
     )
-    
+
     top_product_name = top_product.name if top_product else None
 
-    # Premium features only for paid users
-    if subscription:
-        # For paid users - get profit data too
+    business = db.query(Business).filter(Business.id == current_user.business_id).first()
+    streak = business.current_streak if business else 0
+
+    # 🚀 Trial users AND paid users get full data
+    if subscription or is_premium_or_trial(db, current_user.business_id, current_user):
         profit_top_product = (
             db.query(
                 Product.name,
-                func.sum(
-                    (Product.selling_price - Product.cost_price) * SaleItem.quantity
-                ).label("profit")
+                func.sum((Product.selling_price - Product.cost_price) * SaleItem.quantity).label("profit"),
             )
             .join(SaleItem, SaleItem.product_id == Product.id)
             .join(Sale, SaleItem.sale_id == Sale.id)
             .filter(
-    Sale.business_id == current_user.business_id,
-    Sale.created_at >= start_of_today_utc,
-    Sale.created_at < end_of_today_utc
-)
-            .group_by(Product.name)
-            .order_by(
-                func.sum(
-                    (Product.selling_price - Product.cost_price) * SaleItem.quantity
-                ).desc()
+                Sale.business_id == current_user.business_id,
+                Sale.created_at >= start_of_today_utc,
+                Sale.created_at < end_of_today_utc,
             )
+            .group_by(Product.name)
+            .order_by(func.sum((Product.selling_price - Product.cost_price) * SaleItem.quantity).desc())
             .first()
         )
 
         if profit_top_product:
             top_product_name = profit_top_product.name
-        
-               # Get streak from business
-        business = db.query(Business).filter(Business.id == current_user.business_id).first()
-        streak = business.current_streak if business else 0
-        
+
         return {
             "date": today,
             "total_sales": summary["total_sales"],
@@ -607,13 +486,7 @@ def end_of_day_summary(
             "low_stock_products": low_stock_products,
             "streak": streak,
         }
-    
     else:
-        # For FREE users - hide profit, but show top product name
-               # Get streak from business
-        business = db.query(Business).filter(Business.id == current_user.business_id).first()
-        streak = business.current_streak if business else 0
-        
         return {
             "date": today,
             "total_sales": summary["total_sales"],

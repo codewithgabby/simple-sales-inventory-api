@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from app.database import get_db
 from app.core.auth import get_current_user
-from app.core.subscription import require_subscription
+from app.core.subscription import require_subscription, is_premium_or_trial
 from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
@@ -22,14 +22,15 @@ def profit_ranking(
     current_user=Depends(get_current_user),
 ):
 
-    #  Require matching subscription
+    # Require matching subscription
     subscription = require_subscription(
         db,
         current_user.business_id,
         period,
     )
 
-    if not subscription:
+    # 🚀 Trial users get full access
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
         raise HTTPException(
             status_code=402,
             detail="Upgrade to unlock Profit Intelligence Engine",
@@ -115,7 +116,6 @@ def profit_ranking(
     }
 
 
-
 @router.get("/stock-prediction")
 def stock_prediction(
     period: str = Query(..., pattern="^(weekly|monthly)$"),
@@ -129,7 +129,8 @@ def stock_prediction(
         period,
     )
 
-    if not subscription:
+    # 🚀 Trial users get full access
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
         raise HTTPException(
             status_code=402,
             detail="Upgrade to unlock Smart Stock Prediction",
@@ -238,7 +239,8 @@ def risk_monitor(
         db, current_user.business_id, "monthly"
     )
 
-    if not weekly_sub and not monthly_sub:
+    # 🚀 Trial users get full access
+    if not weekly_sub and not monthly_sub and not is_premium_or_trial(db, current_user.business_id, current_user):
         raise HTTPException(
             status_code=402,
             detail="Upgrade to unlock Risk Monitor",
@@ -339,4 +341,4 @@ def risk_monitor(
         "slow_moving": slow_moving,
         "expiring_soon": expiring_soon,
         "total_capital_locked": total_capital_locked.quantize(Decimal("0.01")),
-    }  
+    }

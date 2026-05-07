@@ -1,5 +1,5 @@
 # =========================================================
-# SALESZY INSIGHTS ROUTER (PREMIUM ONLY)
+# SALESZY INSIGHTS ROUTER (PREMIUM + TRIAL)
 #
 # Unlocks:
 # - Growth % (weekly/monthly)
@@ -8,7 +8,7 @@
 # - Slowest Moving Product
 # - Inventory Turnover Proxy
 #
-# Requires active subscription based on period
+# Requires active subscription OR 7-day free trial
 # =========================================================
 
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -19,7 +19,7 @@ from decimal import Decimal
 
 from app.database import get_db
 from app.core.auth import get_current_user
-from app.core.subscription import require_subscription
+from app.core.subscription import require_subscription, is_premium_or_trial
 from app.models.sales import Sale
 from app.models.sale_items import SaleItem
 from app.models.products import Product
@@ -91,14 +91,15 @@ def insights_summary(
     current_user=Depends(get_current_user),
 ):
 
-    #  Require matching subscription
+    # Require matching subscription
     subscription = require_subscription(
         db,
         current_user.business_id,
         period,
     )
 
-    if not subscription:
+    # 🚀 Trial users get full insights access
+    if not subscription and not is_premium_or_trial(db, current_user.business_id, current_user):
         raise HTTPException(
             status_code=402,
             detail="Upgrade to unlock Business Insights",
@@ -164,16 +165,16 @@ def insights_summary(
                 ),
                 0
             ).label("profit"),
-   )
-   .join(SaleItem, SaleItem.product_id == Product.id)
-   .join(Sale, SaleItem.sale_id == Sale.id)
-   .filter(
-       Sale.business_id == current_user.business_id,
-       Sale.created_at.between(start_dt, end_dt),
-   )
-   .group_by(Product.id, Product.name)
-   .all()
-)
+        )
+        .join(SaleItem, SaleItem.product_id == Product.id)
+        .join(Sale, SaleItem.sale_id == Sale.id)
+        .filter(
+            Sale.business_id == current_user.business_id,
+            Sale.created_at.between(start_dt, end_dt),
+        )
+        .group_by(Product.id, Product.name)
+        .all()
+    )
 
     top_selling_product = None
     slowest_product = None

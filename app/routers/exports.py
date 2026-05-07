@@ -106,9 +106,11 @@ def fetch_units_for_products(db: Session, product_ids: list):
 def _require_export_access(db: Session, business_id: int, period_type: str, user=None):
     today = datetime.now(timezone.utc).date()
     
-    # 🚀 Allow trial users full access
-    if user and user.trial_end_date and user.trial_end_date > today:
-        return  # Trial active — allow export
+    # Allow trial users full access
+    if user and user.trial_end_date:
+        trial_end = user.trial_end_date.date() if hasattr(user.trial_end_date, 'date') else user.trial_end_date
+        if trial_end > today:
+            return  # Trial active — allow export
 
     # If requesting weekly export, check for weekly OR monthly subscription
     if period_type == "weekly":

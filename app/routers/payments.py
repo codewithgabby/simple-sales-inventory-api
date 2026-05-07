@@ -5,6 +5,7 @@
 # - Clean metadata structure
 # - Startup validation for secret key
 # - Internal logging for debugging
+# - Blocks payments during active trial
 # =========================================================
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -44,6 +45,14 @@ def initialize_payment(
         raise HTTPException(status_code=400, detail="Invalid period type")
 
     today = datetime.now(timezone.utc).date()
+
+    # 🚀 Block payments during active trial
+    if current_user.trial_end_date and current_user.trial_end_date > today:
+        days_left = (current_user.trial_end_date - today).days + 1
+        raise HTTPException(
+            status_code=400,
+            detail=f"You're still enjoying your free trial ({days_left} days left). Subscribe after your trial ends.",
+        )
 
     #  Prevent duplicate active subscription for same period
     existing_access = (

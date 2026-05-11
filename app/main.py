@@ -58,7 +58,9 @@ app.add_middleware(
         "api.saleszy.com.ng",
         "localhost",
         "127.0.0.1",
-        "simple-sales-inventory-api-production.up.railway.app"
+        "simple-sales-inventory-api-production.up.railway.app",
+        "saleszy.com.ng/admin.html",
+        "127.0.0.1:5500/admin.html"
     ],
 )
 

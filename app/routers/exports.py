@@ -26,25 +26,52 @@ router = APIRouter(prefix="/exports", tags=["Exports"])
 # =========================================================
 # UNIT CONVERSION HELPER
 # =========================================================
-def convert_to_readable(quantity: Decimal, product, units_by_product: dict):
+def _format_fractional(quantity: float, unit: str) -> str:
+    """Convert fractional quantity to human-readable string"""
+    whole = int(quantity)
+    frac = quantity - whole
+    
+    # No fraction — just whole number
+    if frac == 0:
+        if whole == 1:
+            return f"{whole} {unit}"
+        return f"{whole} {unit}s"
+    
+    # No whole — just fraction
+    if whole == 0:
+        if frac == 0.5:
+            return f"Half {unit}"
+        if frac == 0.25:
+            return f"Quarter {unit}"
+        if frac == 0.75:
+            return f"¾ {unit}"
+        return f"{quantity} {unit}s"
+    
+    # Mixed — whole + fraction
+    if frac == 0.5:
+        return f"{whole} and a Half {unit}s"
+    if frac == 0.25:
+        return f"{whole} and a Quarter {unit}s"
+    if frac == 0.75:
+        return f"{whole} ¾ {unit}s"
+    return f"{quantity} {unit}s"
+
+
+def convert_to_readable(quantity, product, units_by_product: dict):
     """Convert quantity to readable format using product units"""
     
-    # Get units for this product from cache
     units = units_by_product.get(product.id, [])
-    
-    # Convert Decimal to float for calculations
     remaining = float(quantity)
     
+    # No units configured — use fractional formatting directly
     if not units:
-        # No units configured, use base unit
-        if remaining.is_integer():
-            qty = int(remaining)
-        else:
-            qty = remaining
-        unit = product.base_unit or "unit"
-        if qty != 1 and not unit.endswith('s'):
-            unit = unit + 's'
-        return f"{qty} {unit}"
+        return _format_fractional(remaining, product.base_unit or "unit")
+    
+    # Check if units have real conversions (>1)
+    has_real_conversions = any(float(u.conversion_rate) > 1 for u in units)
+    
+    if not has_real_conversions:
+        return _format_fractional(remaining, product.base_unit or "unit")
     
     # Sort units from largest to smallest
     sorted_units = sorted(units, key=lambda u: float(u.conversion_rate), reverse=True)
@@ -59,26 +86,14 @@ def convert_to_readable(quantity: Decimal, product, units_by_product: dict):
             if count == 1:
                 parts.append(f"{count} {unit_name}")
             else:
-                # Add 's' for plural if needed
-                if not unit_name.endswith('s'):
-                    parts.append(f"{count} {unit_name}s")
-                else:
-                    parts.append(f"{count} {unit_name}")
+                parts.append(f"{count} {unit_name}{'s' if not unit_name.endswith('s') else ''}")
             remaining = remaining % rate
     
-    # Add remaining base units
+    # Add remaining base units with fractional formatting
     if remaining > 0:
-        if remaining.is_integer():
-            qty = int(remaining)
-        else:
-            qty = remaining
-        unit = product.base_unit or "unit"
-        if qty != 1 and not unit.endswith('s'):
-            unit = unit + 's'
-        parts.append(f"{qty} {unit}")
+        parts.append(_format_fractional(remaining, product.base_unit or "unit"))
     
-    return " ".join(parts)
-
+    return " ".join(parts) if parts else f"0 {product.base_unit or 'unit'}"
 
 def fetch_units_for_products(db: Session, product_ids: list):
     """Fetch all units for given products in one query"""

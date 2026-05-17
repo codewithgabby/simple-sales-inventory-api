@@ -20,5 +20,6 @@ class InventoryResponse(BaseModel):
     low_stock_threshold: float
     expiry_date: date | None
 
+    
     class Config:
         from_attributes = True

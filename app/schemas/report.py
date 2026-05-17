@@ -13,7 +13,7 @@ class SalesReportResponse(BaseModel):
     total_profit: Decimal
     profit_margin_percentage: Decimal
     total_orders: int
-    total_items_sold: int
+    total_items_sold: Decimal
     start_date: date
     end_date: date
 
@@ -22,7 +22,7 @@ class ProductProfitResponse(BaseModel):
     product_id: int
     product_name: str
     base_unit: str
-    total_quantity_sold: int
+    total_quantity_sold: Decimal
     total_revenue: Decimal
     total_cost: Decimal
     total_profit: Decimal

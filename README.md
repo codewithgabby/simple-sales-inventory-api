@@ -164,7 +164,7 @@ This architecture allows the application to remain modular while keeping busines
 
 ---
 
-# 🛠 Technology Stack
+# Technology Stack
 
 | Category            | Technology        |
 | ------------------- | ----------------- |
